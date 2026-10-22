@@ -1,0 +1,634 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-21T23:35:44.019063Z",
+  "title": "Design System: Arbor",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "Accent",
+        "tonalRamp": [
+          "oklch(15.00% 0.08111 163.26)",
+          "oklch(26.43% 0.08111 163.26)",
+          "oklch(37.86% 0.08111 163.26)",
+          "oklch(49.29% 0.08111 163.26)",
+          "oklch(60.71% 0.08111 163.26)",
+          "oklch(72.14% 0.08111 163.26)",
+          "oklch(83.57% 0.08111 163.26)",
+          "oklch(95.00% 0.08111 163.26)"
+        ]
+      },
+      "accent-soft": {
+        "role": "primary",
+        "displayName": "Accent Soft",
+        "tonalRamp": [
+          "oklch(15.00% 0.01407 155.59)",
+          "oklch(26.43% 0.01407 155.59)",
+          "oklch(37.86% 0.01407 155.59)",
+          "oklch(49.29% 0.01407 155.59)",
+          "oklch(60.71% 0.01407 155.59)",
+          "oklch(72.14% 0.01407 155.59)",
+          "oklch(83.57% 0.01407 155.59)",
+          "oklch(95.00% 0.01407 155.59)"
+        ]
+      },
+      "accent-hover": {
+        "role": "primary",
+        "displayName": "Accent Hover",
+        "tonalRamp": [
+          "oklch(15.00% 0.06847 162.95)",
+          "oklch(26.43% 0.06847 162.95)",
+          "oklch(37.86% 0.06847 162.95)",
+          "oklch(49.29% 0.06847 162.95)",
+          "oklch(60.71% 0.06847 162.95)",
+          "oklch(72.14% 0.06847 162.95)",
+          "oklch(83.57% 0.06847 162.95)",
+          "oklch(95.00% 0.06847 162.95)"
+        ]
+      },
+      "accent-disabled": {
+        "role": "primary",
+        "displayName": "Accent Disabled",
+        "tonalRamp": [
+          "oklch(15.00% 0.05418 157.94)",
+          "oklch(26.43% 0.05418 157.94)",
+          "oklch(37.86% 0.05418 157.94)",
+          "oklch(49.29% 0.05418 157.94)",
+          "oklch(60.71% 0.05418 157.94)",
+          "oklch(72.14% 0.05418 157.94)",
+          "oklch(83.57% 0.05418 157.94)",
+          "oklch(95.00% 0.05418 157.94)"
+        ]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Canvas",
+        "tonalRamp": [
+          "oklch(15.00% 0.00538 117.92)",
+          "oklch(26.43% 0.00538 117.92)",
+          "oklch(37.86% 0.00538 117.92)",
+          "oklch(49.29% 0.00538 117.92)",
+          "oklch(60.71% 0.00538 117.92)",
+          "oklch(72.14% 0.00538 117.92)",
+          "oklch(83.57% 0.00538 117.92)",
+          "oklch(95.00% 0.00538 117.92)"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 89.88)",
+          "oklch(26.43% 0.00000 89.88)",
+          "oklch(37.86% 0.00000 89.88)",
+          "oklch(49.29% 0.00000 89.88)",
+          "oklch(60.71% 0.00000 89.88)",
+          "oklch(72.14% 0.00000 89.88)",
+          "oklch(83.57% 0.00000 89.88)",
+          "oklch(95.00% 0.00000 89.88)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.02376 169.62)",
+          "oklch(26.43% 0.02376 169.62)",
+          "oklch(37.86% 0.02376 169.62)",
+          "oklch(49.29% 0.02376 169.62)",
+          "oklch(60.71% 0.02376 169.62)",
+          "oklch(72.14% 0.02376 169.62)",
+          "oklch(83.57% 0.02376 169.62)",
+          "oklch(95.00% 0.02376 169.62)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "tonalRamp": [
+          "oklch(15.00% 0.02185 162.37)",
+          "oklch(26.43% 0.02185 162.37)",
+          "oklch(37.86% 0.02185 162.37)",
+          "oklch(49.29% 0.02185 162.37)",
+          "oklch(60.71% 0.02185 162.37)",
+          "oklch(72.14% 0.02185 162.37)",
+          "oklch(83.57% 0.02185 162.37)",
+          "oklch(95.00% 0.02185 162.37)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Line",
+        "tonalRamp": [
+          "oklch(15.00% 0.01139 141.26)",
+          "oklch(26.43% 0.01139 141.26)",
+          "oklch(37.86% 0.01139 141.26)",
+          "oklch(49.29% 0.01139 141.26)",
+          "oklch(60.71% 0.01139 141.26)",
+          "oklch(72.14% 0.01139 141.26)",
+          "oklch(83.57% 0.01139 141.26)",
+          "oklch(95.00% 0.01139 141.26)"
+        ]
+      },
+      "canvas-tree": {
+        "role": "neutral",
+        "displayName": "Canvas Tree",
+        "tonalRamp": [
+          "oklch(15.00% 0.00408 121.56)",
+          "oklch(26.43% 0.00408 121.56)",
+          "oklch(37.86% 0.00408 121.56)",
+          "oklch(49.29% 0.00408 121.56)",
+          "oklch(60.71% 0.00408 121.56)",
+          "oklch(72.14% 0.00408 121.56)",
+          "oklch(83.57% 0.00408 121.56)",
+          "oklch(95.00% 0.00408 121.56)"
+        ]
+      },
+      "control-hover": {
+        "role": "neutral",
+        "displayName": "Control Hover",
+        "tonalRamp": [
+          "oklch(15.00% 0.00732 132.41)",
+          "oklch(26.43% 0.00732 132.41)",
+          "oklch(37.86% 0.00732 132.41)",
+          "oklch(49.29% 0.00732 132.41)",
+          "oklch(60.71% 0.00732 132.41)",
+          "oklch(72.14% 0.00732 132.41)",
+          "oklch(83.57% 0.00732 132.41)",
+          "oklch(95.00% 0.00732 132.41)"
+        ]
+      },
+      "focus": {
+        "role": "semantic",
+        "displayName": "Focus",
+        "tonalRamp": [
+          "oklch(15.00% 0.06599 159.90)",
+          "oklch(26.43% 0.06599 159.90)",
+          "oklch(37.86% 0.06599 159.90)",
+          "oklch(49.29% 0.06599 159.90)",
+          "oklch(60.71% 0.06599 159.90)",
+          "oklch(72.14% 0.06599 159.90)",
+          "oklch(83.57% 0.06599 159.90)",
+          "oklch(95.00% 0.06599 159.90)"
+        ]
+      },
+      "field-focus": {
+        "role": "semantic",
+        "displayName": "Field Focus",
+        "tonalRamp": [
+          "oklch(15.00% 0.04420 156.88)",
+          "oklch(26.43% 0.04420 156.88)",
+          "oklch(37.86% 0.04420 156.88)",
+          "oklch(49.29% 0.04420 156.88)",
+          "oklch(60.71% 0.04420 156.88)",
+          "oklch(72.14% 0.04420 156.88)",
+          "oklch(83.57% 0.04420 156.88)",
+          "oklch(95.00% 0.04420 156.88)"
+        ]
+      },
+      "danger": {
+        "role": "semantic",
+        "displayName": "Danger",
+        "tonalRamp": [
+          "oklch(15.00% 0.14118 25.79)",
+          "oklch(26.43% 0.14118 25.79)",
+          "oklch(37.86% 0.14118 25.79)",
+          "oklch(49.29% 0.14118 25.79)",
+          "oklch(60.71% 0.14118 25.79)",
+          "oklch(72.14% 0.14118 25.79)",
+          "oklch(83.57% 0.14118 25.79)",
+          "oklch(95.00% 0.14118 25.79)"
+        ]
+      },
+      "danger-soft": {
+        "role": "semantic",
+        "displayName": "Danger Soft",
+        "tonalRamp": [
+          "oklch(15.00% 0.00798 36.55)",
+          "oklch(26.43% 0.00798 36.55)",
+          "oklch(37.86% 0.00798 36.55)",
+          "oklch(49.29% 0.00798 36.55)",
+          "oklch(60.71% 0.00798 36.55)",
+          "oklch(72.14% 0.00798 36.55)",
+          "oklch(83.57% 0.00798 36.55)",
+          "oklch(95.00% 0.00798 36.55)"
+        ]
+      },
+      "danger-line": {
+        "role": "semantic",
+        "displayName": "Danger Line",
+        "tonalRamp": [
+          "oklch(15.00% 0.04930 27.65)",
+          "oklch(26.43% 0.04930 27.65)",
+          "oklch(37.86% 0.04930 27.65)",
+          "oklch(49.29% 0.04930 27.65)",
+          "oklch(60.71% 0.04930 27.65)",
+          "oklch(72.14% 0.04930 27.65)",
+          "oklch(83.57% 0.04930 27.65)",
+          "oklch(95.00% 0.04930 27.65)"
+        ]
+      },
+      "node-line": {
+        "role": "neutral",
+        "displayName": "Node Line",
+        "tonalRamp": [
+          "oklch(15.00% 0.02056 138.44)",
+          "oklch(26.43% 0.02056 138.44)",
+          "oklch(37.86% 0.02056 138.44)",
+          "oklch(49.29% 0.02056 138.44)",
+          "oklch(60.71% 0.02056 138.44)",
+          "oklch(72.14% 0.02056 138.44)",
+          "oklch(83.57% 0.02056 138.44)",
+          "oklch(95.00% 0.02056 138.44)"
+        ]
+      },
+      "node-hover-line": {
+        "role": "semantic",
+        "displayName": "Node Hover Line",
+        "tonalRamp": [
+          "oklch(15.00% 0.04227 151.87)",
+          "oklch(26.43% 0.04227 151.87)",
+          "oklch(37.86% 0.04227 151.87)",
+          "oklch(49.29% 0.04227 151.87)",
+          "oklch(60.71% 0.04227 151.87)",
+          "oklch(72.14% 0.04227 151.87)",
+          "oklch(83.57% 0.04227 151.87)",
+          "oklch(95.00% 0.04227 151.87)"
+        ]
+      },
+      "node-symbol": {
+        "role": "semantic",
+        "displayName": "Node Symbol",
+        "tonalRamp": [
+          "oklch(15.00% 0.01138 128.59)",
+          "oklch(26.43% 0.01138 128.59)",
+          "oklch(37.86% 0.01138 128.59)",
+          "oklch(49.29% 0.01138 128.59)",
+          "oklch(60.71% 0.01138 128.59)",
+          "oklch(72.14% 0.01138 128.59)",
+          "oklch(83.57% 0.01138 128.59)",
+          "oklch(95.00% 0.01138 128.59)"
+        ]
+      },
+      "node-symbol-ink": {
+        "role": "semantic",
+        "displayName": "Node Symbol Ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.07067 148.32)",
+          "oklch(26.43% 0.07067 148.32)",
+          "oklch(37.86% 0.07067 148.32)",
+          "oklch(49.29% 0.07067 148.32)",
+          "oklch(60.71% 0.07067 148.32)",
+          "oklch(72.14% 0.07067 148.32)",
+          "oklch(83.57% 0.07067 148.32)",
+          "oklch(95.00% 0.07067 148.32)"
+        ]
+      },
+      "visited": {
+        "role": "semantic",
+        "displayName": "Visited",
+        "tonalRamp": [
+          "oklch(15.00% 0.01185 145.48)",
+          "oklch(26.43% 0.01185 145.48)",
+          "oklch(37.86% 0.01185 145.48)",
+          "oklch(49.29% 0.01185 145.48)",
+          "oklch(60.71% 0.01185 145.48)",
+          "oklch(72.14% 0.01185 145.48)",
+          "oklch(83.57% 0.01185 145.48)",
+          "oklch(95.00% 0.01185 145.48)"
+        ]
+      },
+      "visited-line": {
+        "role": "semantic",
+        "displayName": "Visited Line",
+        "tonalRamp": [
+          "oklch(15.00% 0.05467 145.04)",
+          "oklch(26.43% 0.05467 145.04)",
+          "oklch(37.86% 0.05467 145.04)",
+          "oklch(49.29% 0.05467 145.04)",
+          "oklch(60.71% 0.05467 145.04)",
+          "oklch(72.14% 0.05467 145.04)",
+          "oklch(83.57% 0.05467 145.04)",
+          "oklch(95.00% 0.05467 145.04)"
+        ]
+      },
+      "current": {
+        "role": "semantic",
+        "displayName": "Current",
+        "tonalRamp": [
+          "oklch(15.00% 0.02436 83.42)",
+          "oklch(26.43% 0.02436 83.42)",
+          "oklch(37.86% 0.02436 83.42)",
+          "oklch(49.29% 0.02436 83.42)",
+          "oklch(60.71% 0.02436 83.42)",
+          "oklch(72.14% 0.02436 83.42)",
+          "oklch(83.57% 0.02436 83.42)",
+          "oklch(95.00% 0.02436 83.42)"
+        ]
+      },
+      "current-line": {
+        "role": "semantic",
+        "displayName": "Current Line",
+        "tonalRamp": [
+          "oklch(15.00% 0.11401 76.85)",
+          "oklch(26.43% 0.11401 76.85)",
+          "oklch(37.86% 0.11401 76.85)",
+          "oklch(49.29% 0.11401 76.85)",
+          "oklch(60.71% 0.11401 76.85)",
+          "oklch(72.14% 0.11401 76.85)",
+          "oklch(83.57% 0.11401 76.85)",
+          "oklch(95.00% 0.11401 76.85)"
+        ]
+      }
+    },
+    "colorRampUsage": "Synthesized dark-to-light OKLCH swatch ramps for inspection only; application colors remain the frontmatter values. These ramps are not a shipped shade scale.",
+    "documentationBasis": {
+      "mode": "scan",
+      "sources": [
+        "public/assets/app.css",
+        "views/app.php",
+        "public/assets/app.js",
+        "PRODUCT.md"
+      ],
+      "authority": "User-directed documentation of the implemented system; no formal composition gate or design certificate.",
+      "verification": "Static source extraction; no browser rendering or accessibility conformance audit performed by this documentation pass."
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page purpose."
+      },
+      "inspector-title": {
+        "displayName": "Inspector Title",
+        "purpose": "Selected source heading."
+      },
+      "panel-title": {
+        "displayName": "Panel Title",
+        "purpose": "Working-region labels."
+      },
+      "node-title": {
+        "displayName": "Node Title",
+        "purpose": "Two-line graph titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "General interface copy."
+      },
+      "source": {
+        "displayName": "Source",
+        "purpose": "Exact source reading."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Visible form labels."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Full button text."
+      },
+      "small": {
+        "displayName": "Small",
+        "purpose": "Secondary UI context."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "JSON and API data."
+      },
+      "path": {
+        "displayName": "Path",
+        "purpose": "Source paths and technical provenance."
+      }
+    },
+    "shadows": [
+      {
+        "name": "node-rest",
+        "value": "0 2px 3px #273b2910",
+        "purpose": "Small resting lift for tree nodes."
+      },
+      {
+        "name": "node-hover",
+        "value": "0 3px 8px #273b2920",
+        "purpose": "Hover response on a draggable tree node."
+      },
+      {
+        "name": "node-selected",
+        "value": "0 0 0 2px #23664b20",
+        "purpose": "Selected source node ring."
+      },
+      {
+        "name": "node-current",
+        "value": "0 0 0 2px #bf9a4820",
+        "purpose": "Current traversal node ring."
+      },
+      {
+        "name": "dialog",
+        "value": "0 20px 80px #172b2630",
+        "purpose": "Modal separation from the page."
+      },
+      {
+        "name": "toast",
+        "value": "0 4px 20px #132f2925",
+        "purpose": "Transient notification separation."
+      }
+    ],
+    "focus": [
+      {
+        "name": "keyboard",
+        "value": "3px solid #75a68b",
+        "offset": "3px",
+        "purpose": "Shared visible keyboard focus."
+      },
+      {
+        "name": "field",
+        "value": "2px solid #98b7a3",
+        "offset": "1px",
+        "purpose": "Input, textarea, and select focus."
+      }
+    ],
+    "backdrop": {
+      "background": "#20362b50",
+      "backdropFilter": "blur(3px)",
+      "purpose": "Native modal dialog backdrop."
+    },
+    "motion": [
+      {
+        "name": "button-state",
+        "value": "background .15s, box-shadow .15s",
+        "purpose": "Brief state feedback."
+      },
+      {
+        "name": "node-state",
+        "value": "border-color .15s, box-shadow .15s",
+        "purpose": "Graph node feedback."
+      },
+      {
+        "name": "progress",
+        "value": "width .3s",
+        "purpose": "Progress-bar updates."
+      },
+      {
+        "name": "toast-entry",
+        "value": "toast-in .2s ease-out",
+        "keyframes": "from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; }",
+        "purpose": "Small notification entrance."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation: none !important; transition: none !important; scroll-behavior: auto !important",
+        "purpose": "Applied to all elements and pseudo-elements under prefers-reduced-motion: reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide",
+        "value": "1700px",
+        "query": "min-width"
+      },
+      {
+        "name": "compact-desktop",
+        "value": "1200px",
+        "query": "max-width"
+      },
+      {
+        "name": "stack-inspector",
+        "value": "960px",
+        "query": "max-width"
+      },
+      {
+        "name": "stack-workspace",
+        "value": "680px",
+        "query": "max-width"
+      }
+    ],
+    "behavior": {
+      "graphContainerFocusThreshold": "650px",
+      "historyVisibility": "Keep the active request row inside the history pane after render and on history resize.",
+      "sourceBoundary": "Abstract and origin are separate from source content and explicit references."
+    }
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "description": "Primary operational action with visible hover, keyboard focus, and disabled states.",
+      "html": "<button class=\"ds-button\">Publish version <svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 12h16m-6-6 6 6-6 6\"/></svg></button>",
+      "css": ".ds-button{font-family:Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;display:inline-flex;justify-content:center;align-items:center;gap:8px;min-height:37px;border:1px solid var(--line,#dce2db);padding:8px 13px;border-radius:7px;font-size:12px;font-weight:550;line-height:1.55;cursor:pointer;white-space:nowrap;transition:background .15s,box-shadow .15s;background:var(--accent,#23664b);color:var(--panel,#fff);border-color:var(--accent,#23664b)}.ds-button:hover{background:#194f39}.ds-button:disabled{background:#567b65}.ds-button:focus-visible{outline:3px solid var(--focus,#75a68b);outline-offset:3px;}.ds-button:disabled{cursor:wait;opacity:.55}@media(prefers-reduced-motion:reduce){.ds-button{transition:none}}",
+      "refersTo": "button-primary"
+    },
+    {
+      "name": "Neutral button",
+      "kind": "button",
+      "description": "Supporting action, used for import and secondary confirmations.",
+      "html": "<button class=\"ds-button\">Import documents</button>",
+      "css": ".ds-button{font-family:Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;display:inline-flex;justify-content:center;align-items:center;gap:8px;min-height:37px;border:1px solid var(--line,#dce2db);padding:8px 13px;border-radius:7px;font-size:12px;font-weight:550;line-height:1.55;cursor:pointer;white-space:nowrap;transition:background .15s,box-shadow .15s;background:var(--panel,#fff);color:var(--ink,#24342e)}.ds-button:hover{background:#f2f5f0;border-color:#bdcbbf}.ds-button:focus-visible{outline:3px solid var(--focus,#75a68b);outline-offset:3px;}.ds-button:disabled{cursor:wait;opacity:.55}@media(prefers-reduced-motion:reduce){.ds-button{transition:none}}",
+      "refersTo": "button-neutral"
+    },
+    {
+      "name": "Danger button",
+      "kind": "button",
+      "description": "Destructive confirmation within a deliberate dialog.",
+      "html": "<button class=\"ds-button\">Delete node</button>",
+      "css": ".ds-button{font-family:Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;display:inline-flex;justify-content:center;align-items:center;gap:8px;min-height:37px;border:1px solid var(--line,#dce2db);padding:8px 13px;border-radius:7px;font-size:12px;font-weight:550;line-height:1.55;cursor:pointer;white-space:nowrap;transition:background .15s,box-shadow .15s;background:#fff8f6;color:var(--danger,#a33935);border-color:#e6bcb6}.ds-button:hover{background:#fff8f6;border-color:#e6bcb6}.ds-button:focus-visible{outline:3px solid var(--focus,#75a68b);outline-offset:3px;}.ds-button:disabled{cursor:wait;opacity:.55}@media(prefers-reduced-motion:reduce){.ds-button{transition:none}}",
+      "refersTo": "button-danger"
+    },
+    {
+      "name": "Text action",
+      "kind": "button",
+      "description": "Compact contextual action beside source content or navigation.",
+      "html": "<button class=\"ds-text\">Test in Lab <svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 12h16m-6-6 6 6-6 6\"/></svg></button>",
+      "css": ".ds-text{font-family:Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;display:inline-flex;align-items:center;gap:6px;border:0;background:none;font-size:11px;font-weight:550;padding:4px 0;color:var(--accent,#23664b);cursor:pointer}.ds-text:hover{text-decoration:underline}.ds-text:focus-visible{outline:3px solid var(--focus,#75a68b);outline-offset:3px;}",
+      "refersTo": "button-text"
+    },
+    {
+      "name": "Icon action",
+      "kind": "button",
+      "description": "Small labeled control for canvas or contextual tools.",
+      "html": "<button class=\"ds-icon-button\" aria-label=\"Zoom in\">+</button>",
+      "css": ".ds-icon-button{font-family:Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;display:inline-flex;align-items:center;justify-content:center;border:0;background:none;width:30px;height:30px;border-radius:6px;color:var(--muted,#627169);font-size:17px;cursor:pointer}.ds-icon-button:hover{background:#e9eee6;color:var(--ink,#24342e)}.ds-icon-button:focus-visible{outline:3px solid var(--focus,#75a68b);outline-offset:3px;}",
+      "refersTo": "button-icon"
+    },
+    {
+      "name": "Text field",
+      "kind": "input",
+      "description": "A labeled white field with the shipped border and focus treatment.",
+      "html": "<label class=\"ds-label\" for=\"ds-node-title\">Title</label><input class=\"ds-input\" id=\"ds-node-title\" value=\"Connection troubleshooting\">",
+      "css": ".ds-label{font-family:Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;display:block;font-size:12px;font-weight:600;color:var(--ink,#24342e);margin-bottom:5px}.ds-input{font-family:Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;max-width:100%;border:1px solid var(--line,#dce2db);border-radius:7px;background:var(--panel,#fff);color:var(--ink,#24342e);padding:9px 11px;font-size:12px;line-height:1.55}.ds-input:focus{outline:2px solid #98b7a3;outline-offset:1px}",
+      "refersTo": "input"
+    },
+    {
+      "name": "Main navigation",
+      "kind": "nav",
+      "description": "Horizontal destinations with a sage current-page underline.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Main navigation\"><a href=\"#workspace\" aria-current=\"page\">Workspace</a><a href=\"#lab\">Traversal Lab</a><a href=\"#settings\">API &amp; models</a></nav>",
+      "css": ".ds-nav{font-family:Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;display:flex;height:72px;gap:32px;background:var(--panel,#fff)}.ds-nav a{position:relative;display:flex;align-items:center;gap:8px;color:var(--muted,#627169);font-size:12px;font-weight:550;white-space:nowrap;text-decoration:none}.ds-nav a:hover{color:var(--ink,#24342e)}.ds-nav a[aria-current]{color:var(--accent,#23664b)}.ds-nav a[aria-current]:after{content:\"\";height:3px;background:var(--accent,#23664b);position:absolute;bottom:0;left:0;right:0;border-radius:3px 3px 0 0}.ds-nav a:focus-visible{outline:3px solid var(--focus,#75a68b);outline-offset:3px;}@media(max-width:680px){.ds-nav{gap:0;justify-content:space-between;height:45px}.ds-nav a{font-size:11px}}"
+    },
+    {
+      "name": "Status labels",
+      "kind": "chip",
+      "description": "Informational sage and subdued labels; no invented hover action.",
+      "html": "<span class=\"ds-pill\">Live API</span> <span class=\"ds-pill ds-subtle\">Optional</span>",
+      "css": ".ds-pill{font-family:Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;display:inline-flex;align-items:center;gap:6px;border:1px solid #c8ddca;border-radius:5px;padding:3px 7px;background:var(--accent-soft,#e9f3ec);color:var(--accent,#23664b);font-size:10px;font-weight:550;line-height:1.55;white-space:nowrap}.ds-pill.ds-subtle{background:var(--canvas,#f5f6f2);border-color:var(--line,#dce2db);color:var(--muted,#627169)}",
+      "refersTo": "pill"
+    },
+    {
+      "name": "Working panel",
+      "kind": "card",
+      "description": "A flat, bordered response container with a compact heading.",
+      "html": "<section class=\"ds-panel\"><header class=\"ds-panel-heading\"><h2>Response</h2><span>Waiting for your first command</span></header><div class=\"ds-panel-body\">Send a command to inspect the returned content.</div></section>",
+      "css": ".ds-panel{font-family:Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;border:1px solid var(--line,#dce2db);border-radius:12px;overflow:hidden;background:var(--panel,#fff);color:var(--ink,#24342e);font-size:13px;line-height:1.55}.ds-panel-heading{min-height:55px;padding:9px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line,#dce2db)}.ds-panel-heading h2{font-size:14px;font-weight:600;letter-spacing:-.15px;margin:0}.ds-panel-heading span{font-size:11px;color:var(--muted,#627169)}.ds-panel-body{padding:18px 22px;color:var(--muted,#627169)}",
+      "refersTo": "panel"
+    },
+    {
+      "name": "Knowledge node",
+      "kind": "custom",
+      "description": "The signature source node; selected, visited, and current variants mirror the application.",
+      "html": "<button class=\"ds-node ds-selected\" aria-label=\"Check the connection, selected\"><span class=\"ds-node-symbol\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 3h8l4 4v14H6zM14 3v5h4M9 12h6M9 16h6\"/></svg></span><span class=\"ds-node-text\"><span class=\"ds-node-title\">Check the connection</span><span class=\"ds-node-meta\">step</span></span></button>",
+      "css": ".ds-node{font-family:Inter,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;display:flex;align-items:center;gap:10px;width:224px;height:66px;padding:10px 12px;background:var(--panel,#fff);color:var(--ink,#24342e);border:1px solid #d4ded1;border-radius:9px;box-shadow:0 2px 3px #273b2910;text-align:left;cursor:grab;touch-action:none;user-select:none;transition:border-color .15s,box-shadow .15s}.ds-node:hover{border-color:#95b09b;box-shadow:0 3px 8px #273b2920}.ds-node.ds-selected{border-color:var(--accent,#23664b);box-shadow:0 0 0 2px #23664b20}.ds-node.ds-visited{background:#edf4ed;border-color:#a6c5a6}.ds-node.ds-current{background:#fff6e5;border-color:#b68533;box-shadow:0 0 0 2px #bf9a4820}.ds-node:focus-visible{outline:3px solid var(--focus,#75a68b);outline-offset:3px;}.ds-node-symbol{background:#f1f5ed;color:#567f5c;width:30px;height:30px;display:grid;place-items:center;border-radius:7px;flex-shrink:0}.ds-node-text{min-width:0;flex:1}.ds-node-title{font-size:14px;line-height:1.35;font-weight:550;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.ds-node-meta{font-size:11px;color:var(--muted,#627169);margin-top:3px}@media(prefers-reduced-motion:reduce){.ds-node{transition:none}}",
+      "refersTo": "graph-node"
+    }
+  ],
+  "narrative": {
+    "northStar": "Visible hierarchy, exact sources",
+    "overview": "Arbor is a calm operational workspace. Warm off-white surroundings, white working panels, restrained sage states, and fine rules keep the tree and source material in the foreground. The visual thesis is visible hierarchy with exact source instructions: interface chrome helps people locate and understand information without rewriting its meaning.\n\nThe interface is compact enough for repeated use, with a clear page heading and a more open source-reading area. The tree is the primary visual artifact. The workspace and Traversal Lab share the same material and controls while keeping editing and request inspection distinct. This record is extracted from the implemented PHP views and vanilla JavaScript interface; it does not claim a formal design certificate or a rendered accessibility audit.",
+    "keyCharacteristics": [
+      "Quiet, light surfaces with sage used for actions and selection.",
+      "Visible hierarchy through panels, thin rules, and tree connections.",
+      "Readable source content beside compact operational controls.",
+      "Explicit labels for versions, origins, references, and request state.",
+      "Small state transitions, with reduced motion support."
+    ],
+    "rules": [
+      {
+        "name": "The State Has Meaning Rule",
+        "body": "Use sage for primary actions and selection, pale green for visited nodes, and pale amber for the current traversal position. Pair state color with text, a legend, or a visible control state.",
+        "section": "colors"
+      },
+      {
+        "name": "The Source Stays Legible Rule",
+        "body": "Use proportional type for source reading and editing. Reserve monospace for paths, JSON, API names, and technical identifiers.",
+        "section": "typography"
+      },
+      {
+        "name": "The Quiet Surface Rule",
+        "body": "Keep working panels flat. Use the existing modest lift on tree nodes and stronger shadows only for transient overlays.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep the page purpose, selected version, and current working state visible.",
+      "Do preserve the distinction between abstracts, original content, preserved sources, and explicit references.",
+      "Do reuse the actual control, node, and panel corner tokens instead of applying one radius everywhere.",
+      "Do keep the selected request visible in history and align its response with the traversal state.",
+      "Do retain visible keyboard focus, accessible control labels, native dialog behavior, and reduced motion support.",
+      "Do stack working regions at narrow widths and allow the graph itself to scroll."
+    ],
+    "donts": [
+      "Don't add marketing heroes, decorative cards, or fabricated metrics to this operational workspace.",
+      "Don't make source instructions look like automatically executed workflow decisions.",
+      "Don't present lexical search, sample content, or fixtures as model output.",
+      "Don't use graph repositioning to imply a hierarchy change; outline movement and graph layout have distinct effects.",
+      "Don't use color alone to distinguish source provenance or request outcomes.",
+      "Don't infer new accent families or replace the quiet panel system with gradients, heavy shadows, or ornamental surfaces."
+    ]
+  }
+}

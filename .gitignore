@@ -1,0 +1,10 @@
+/data/*
+!/data/.gitkeep
+/vendor/
+/.env
+/.impeccable/review/
+/tests/artifacts/
+.DS_Store
+/.env.*
+!/.env.example
+*.log
