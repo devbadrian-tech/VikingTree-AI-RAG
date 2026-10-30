@@ -57,3 +57,5 @@ require_once __DIR__ . '/Models.php';
 require_once __DIR__ . '/Tools.php';
 require_once __DIR__ . '/Importer.php';
 require_once __DIR__ . '/Mcp.php';
+
+require_once __DIR__ . '/Summaries.php';

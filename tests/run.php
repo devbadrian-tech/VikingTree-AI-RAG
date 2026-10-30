@@ -1,5 +1,8 @@
 <?php
 declare(strict_types=1);
+// Never inherit live provider configuration or launch automatic workers in tests.
+foreach (['OPENAI_API_KEY','OPENAI_BASE_URL','ARBOR_LLM_PROVIDER','ARBOR_LLM_MODEL','AWS_REGION','AWS_BEARER_TOKEN_BEDROCK','AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY','AWS_SESSION_TOKEN','ARBOR_AUTO_SUMMARIZE','ARBOR_SUMMARY_TOKENS'] as $key) putenv($key . '=');
+putenv('ARBOR_EXTERNAL_WORKER=1');
 // Each run uses a disposable database; the user's workspace is never touched.
 $testDir = sys_get_temp_dir() . '/arbor-test-' . bin2hex(random_bytes(5)); mkdir($testDir, 0700);
 putenv('ARBOR_DB=' . $testDir . '/test.sqlite');
@@ -11,7 +14,7 @@ function check(bool $value, string $message): void { global $passed; if (!$value
 function fails(callable $fn, string $code, string $message): void { try { $fn(); } catch (ApiError $e) { check($e->kind === $code, $message . ' [' . $e->kind . ']'); return; } throw new RuntimeException('FAIL: ' . $message . ' (no exception)'); }
 function revision(): int { return state('draft')['revision']; }
 final class FakeModels implements ModelGateway {
-    public int $calls = 0; public bool $invalid = false; public bool $noAnswer = false; public bool $rejectFinal = false; public bool $conflict = false;
+    public array $summaryCalls = []; public bool $oversize=false; public int $calls = 0; public bool $invalid = false; public bool $noAnswer = false; public bool $rejectFinal = false; public bool $conflict = false;
     public function json(string $instruction, array $data, int $tokens = 3000): array {
         $this->calls++;
         if ($this->conflict) { $d = state('draft'); $d['revision']++; setState('draft', $d); $this->conflict = false; }
@@ -19,6 +22,8 @@ final class FakeModels implements ModelGateway {
         if (isset($data['navigation_review'])) return ['issues' => []];
         if (isset($data['sources'])) return ['answer' => $this->noAnswer ? null : 'Read the incident log before escalating.', 'citation_ids' => $this->noAnswer ? [] : [$data['sources'][0]['id']]];
         if (isset($data['documents'])) return ['groups' => [['title' => 'Generated folder', 'summary' => 'Example grouping.', 'document_ids' => array_column($data['documents'], 'id')]]];
+        if(isset($data['budget'])) $this->summaryCalls[] = ['data'=>$data,'tokens'=>$tokens];
+        if($this->oversize) return ['summary'=>str_repeat('x',1300),'overview'=>'Test'];
         return ['summary' => 'A concise abstract of ' . ($data['title'] ?? 'the content') . '.', 'overview' => 'An overview based on supplied source content.'];
     }
     public function jev(string $question, array $candidates): array { return array_fill_keys(array_column($candidates, 'id'), ($candidates[0]['id'] ?? '') === 'final_answer' && $this->rejectFinal ? .1 : .9); }
@@ -105,6 +110,42 @@ try {
     check($repo->resolve($repo->snapshot('draft'), 'demo_step1')['content'] === $before, 'AI builds do not rewrite original instructions');
     $makeJob('job_conflict'); $fake->conflict = true; $build->work('job_conflict');
     check($build->job('job_conflict')['result']['code'] === 'revision_conflict', 'AI build cannot overwrite edits made while the model was running');
+    // Bearer credentials override SigV4 without exposing or persisting environment secrets.
+    putenv('ARBOR_LLM_PROVIDER=bedrock'); putenv('ARBOR_LLM_MODEL=fixture-bedrock'); putenv('AWS_BEARER_TOKEN_BEDROCK=fixture-short-term');
+    check(Models::config()['configured'], 'Bedrock bearer token config works without an access/secret key pair');
+    check(!isset(Models::config(true)['bedrock_token']) && Models::config(true)['bedrock_token_set'], 'Bedrock bearer token is redacted');
+    $headers=Models::bedrockHeaders('example.test','/model/test/converse','{}',Models::config());
+    check($headers===['Authorization: Bearer fixture-short-term'], 'Bearer requests do not also use SigV4');
+    Models::save(['jev_threshold'=>0.7]);
+    check((state('models')['bedrock_token']??'')==='', 'Saving settings does not copy environment credentials into SQLite');
+    putenv('ARBOR_LLM_PROVIDER=');putenv('ARBOR_LLM_MODEL=');putenv('AWS_BEARER_TOKEN_BEDROCK=');
+    putenv('ARBOR_LLM_PROVIDER=openai');putenv('ARBOR_LLM_MODEL=fixture-openai');putenv('OPENAI_API_KEY=fixture-env-openai');
+    check(Models::config()['configured'] && Models::config()['api_key']==='fixture-env-openai','OpenAI environment API key is used for the selected provider');
+    check(!isset(Models::config(true)['api_key']) && in_array('api_key',Models::config(true)['environment_fields']),'OpenAI environment key is redacted and marked environment-managed');
+    Models::save(['jev_threshold'=>0.65]);check(state('models')['api_key']==='fixture-key','OpenAI environment key is not persisted into saved settings');
+    putenv('ARBOR_LLM_PROVIDER=');putenv('ARBOR_LLM_MODEL=');putenv('OPENAI_API_KEY=');
+    fails(fn()=>Arbor\Summaries::save(['tokens'=>[512,256,768,1024]]),'invalid_budget','Decreasing layer budgets are rejected');
+    Arbor\Summaries::save(['enabled'=>true,'debounce'=>2,'tokens'=>[256,512,768,1024]]);
+    $pending=state('summary_pending');
+    $repo->saveNode(['revision'=>revision(),'id'=>'demo_step1','layout'=>['x'=>50,'y'=>70]]);
+    check(state('summary_pending')===$pending,'Canvas-only movement does not schedule summaries');
+    $repo->saveNode(['revision'=>revision(),'id'=>'demo_step1','title'=>'Changed step title']);
+    check(state('summary_pending')['nonce']!==$pending['nonce'],'Content edits replace the pending marker to debounce work');
+    $count=$fake->calls;Arbor\Summaries::tick($build);
+    check($fake->calls===$count,'Automatic builds wait for the quiet period');
+    $pending=state('summary_pending');$pending['due']=0;setState('summary_pending',$pending);
+    $fake->summaryCalls=[];$beforeNodes=$repo->snapshot('draft')['nodes'];
+    Arbor\Summaries::tick($build);
+    check(state('summary_last')['status']==='complete' && state('summary_pending')===null,'Automatic whole-tree build completes without re-triggering itself');
+    check(count($fake->summaryCalls)===count($beforeNodes),'Automatic build summarizes every node');
+    $layers=[];foreach($fake->summaryCalls as $call){$depth=$call['data']['budget']['layer'];$layers[$depth]=$call['tokens'];check(count($call['data']['structure'])===count($beforeNodes),'Summary receives the whole hierarchy context');}
+    check(($layers[1]??0)===256 && ($layers[2]??0)===512 && ($layers[3]??0)===768 && ($layers[4]??0)===1024,'Actual provider output budgets increase with absolute tree depth');
+    $afterNodes=$repo->snapshot('draft')['nodes'];
+    check(array_column($beforeNodes,'content','id')===array_column($afterNodes,'content','id') && array_column($beforeNodes,'references','id')===array_column($afterNodes,'references','id'),'Automatic summaries preserve every instruction and explicit reference');
+    $repo->saveNode(['revision'=>revision(),'id'=>'demo_step1','title'=>'Another edit']);$p=state('summary_pending');$p['due']=0;setState('summary_pending',$p);
+    $fake->oversize=true;$beforeRevision=revision();Arbor\Summaries::tick($build);$fake->oversize=false;
+    check(state('summary_last')['status']==='failed' && revision()===$beforeRevision,'Over-budget summaries fail atomically with a visible job failure');
+    $count=$fake->calls;Arbor\Summaries::tick($build);check($fake->calls===$count,'Provider failures do not cause an automatic retry loop');
     $mcp = new Mcp($tools, $repo);
     check($mcp->handle(['jsonrpc'=>'2.0','id'=>1,'method'=>'initialize'])['result']['protocolVersion'] === '2025-11-25', 'MCP initializes with an explicit protocol version');
     check(count($mcp->handle(['jsonrpc'=>'2.0','id'=>2,'method'=>'tools/list'])['result']['tools']) === 4, 'MCP exposes all four navigation tools');

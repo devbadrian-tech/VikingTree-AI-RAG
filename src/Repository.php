@@ -77,18 +77,23 @@ final class Repository
             'browse_args' => ['id' => $node['id'], 'version' => $snapshot['version']]];
     }
 
-    public function mutate(int $revision, callable $fn): mixed
+    public function mutate(int $revision, callable $fn, bool $schedule = true): mixed
     {
         $db = db(); $db->exec('BEGIN IMMEDIATE');
         try {
             $draft = state('draft');
             if ($draft['revision'] !== $revision) throw new ApiError('revision_conflict', 'This draft changed. Reload before saving.', 409, ['current_revision' => $draft['revision']]);
+            $before = Summaries::fingerprint($draft['nodes']);
             $result = $fn($draft);
             $this->validate($draft['nodes']);
             $draft['revision']++; $draft['updated_at'] = now();
-            setState('draft', $draft); $db->exec('COMMIT');
-            return ['revision' => $draft['revision'], 'result' => $result];
+            $changed = $schedule && $before !== Summaries::fingerprint($draft['nodes']);
+            setState('draft', $draft);
+            if ($changed) Summaries::dirty();
+            $db->exec('COMMIT');
         } catch (\Throwable $e) { $db->exec('ROLLBACK'); throw $e; }
+        if ($changed) Summaries::wake();
+        return ['revision' => $draft['revision'], 'result' => $result];
     }
 
     public function makeNode(array $data): array

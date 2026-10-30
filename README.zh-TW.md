@@ -38,6 +38,38 @@ flowchart LR
 
 本專案參考階層檢索概念，自訂資料格式，並非 OpenViking 或 PageIndex 的包裝或兼容實作。目前沒有使用 embedding 或向量資料庫，也未證明準確率優於向量 RAG；現有方式是直接瀏覽、關鍵字搜尋及有範圍限制的模型導覽。混合搜尋屬未來方向。
 
+## Docker Compose 與環境設定
+
+```sh
+cp .env.example .env
+# 編輯 .env，設定 ARBOR_API_TOKEN、模型 ID 及供應商憑證。
+docker compose up -d --build
+```
+
+開啟 http://127.0.0.1:8787 並以 `ARBOR_API_TOKEN` 解鎖。Compose 提供 Apache／PHP 網頁服務及獨立自動摘要 worker；SQLite 保存於 `arbor-data` volume。預設只綁定本機，`.env`、本機資料庫及 Git 歷史不會加入映像檔。`docker compose down` 會停止服務但保留資料。
+
+- **Bedrock 短期 API key：** 設定 `ARBOR_LLM_PROVIDER=bedrock`、`ARBOR_LLM_MODEL`、`AWS_REGION` 及 `AWS_BEARER_TOKEN_BEDROCK`，使用 Bearer 驗證。若使用 STS，留空 bearer token，另填 `AWS_ACCESS_KEY_ID`、`AWS_SECRET_ACCESS_KEY`、`AWS_SESSION_TOKEN` 三項。
+- **OpenAI API：** 設定 `ARBOR_LLM_PROVIDER=openai`、`ARBOR_LLM_MODEL` 及 `OPENAI_API_KEY`。`OPENAI_BASE_URL` 預設為 `https://api.openai.com/v1`。使用 API key，不是 ChatGPT 網站登入資料；只會呼叫所選供應商。
+- 非空的模型環境設定優先於 UI 保存值，介面會標示由環境管理；儲存設定不會將環境憑證複製到資料庫。
+- 短期 token 過期後，更新 `.env` 並執行 `docker compose up -d --force-recreate`。單純 restart 不會重讀 env 檔；目前不會自動續期。[AWS 驗證說明](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-use.html)
+
+## 自動摘要與節點顯示
+
+工作台提供 **Refresh all summaries**、**Enable／Pause automatic updates**、**Build history** 和層級預算設定入口。狀態區顯示等待、目前處理節點、百分比、完成或錯誤。點擊樹上節點的小 **+** 可展開摘要；原文及較長概覽仍在右側面板。Lab 新增節點選擇、瀏覽／讀取按鈕與搜尋表單，毋須手寫 JSON。
+
+`.env.example` 預設啟用自動摘要。修改內容、標題、引用或階層後，等待最後一次編輯結束 15 秒，再從最底層向上更新全樹摘要；單純移動畫布位置不觸發。根節點為第 1 層，第 4 層預算亦用於更深層。可在 **API & models → Summary budgets by layer** 修改：
+
+| 層級 | 每節點模型輸出 token 上限 | 短摘要字元上限 | 概覽字元上限 |
+| --- | ---: | ---: | ---: |
+| 1 | 256 | 160 | 384 |
+| 2 | 512 | 320 | 768 |
+| 3 | 768 | 480 | 1152 |
+| 4 及以下 | 1024 | 640 | 1536 |
+
+Token 上限涵蓋整份 JSON 回應（短摘要與概覽合計）；個別欄位採字元上限，不是精確 token 計算。提示保留步驟條件、例外及跳轉目標；原文、步驟 ID 與明確引用不會被摘要改寫。每個節點會取得全樹的 ID、父節點、類型及縮短標題，以及本身原文與子節點最新摘要，不是每次傳送所有文件全文。分組先完成，才依最終位置產生摘要。
+
+UI 保存的自動摘要與預算設定優先於環境預設值。啟用時會安排一次全樹更新；自動模式不會擅自重組或發布。結果以交易完整提交，期間有編輯便改用新版草稿重試；模型失敗後停止，等待新編輯或手動刷新。全樹最多 600 個節點。非 Docker 模式會在編輯後啟動短期背景 worker；可執行 `php bin/auto.php --daemon` 持續處理。暫停不會取消已發出的模型請求。
+
 ## 快速啟動
 
 需要 **PHP 8.2+**，以及 PDO SQLite、cURL、mbstring 擴充。無需安裝 Composer 套件、Node 建置工具或前端框架。
@@ -174,10 +206,10 @@ stdio 以檔案系統權限存取同一資料庫，不要求 HTTP token。工具
 - 只支援 Markdown／UTF-8 文字；每批最多 30 個檔案、每檔 500 KB、合計 2 MB。節點文字欄位上限 100 KB，較大內容需用標題分段。
 - 原始來源以 hash 去重；修改後的檔案目前建立新文件，沒有來源同步或合併精靈。
 - 明確引用支援同範圍的 `stepN` 文字及 Markdown 中的完整 `viking://` 路徑。已解析 ID 在目標改名或移動後仍保留。
-- AI 短摘要最多 800 字元，提示目標為 90 個英文單字；概覽另設上限。這是字元／輸出預算，不是精確 tokenizer 限額。
-- 分組針對所選目錄直接包含的文件，保留文件 ID 及內部標題。匯入後建樹只處理新匯入文件；獨立建樹處理所選子樹。
+- AI 摘要依上述層級預算設定模型總輸出 token 上限及個別欄位字元上限。
+- 分組針對所選目錄直接包含的文件，保留文件 ID 及內部標題。範圍建樹處理選定節點；分組後及自動更新會刷新全樹摘要。
 - 導航檢視按批次檢查摘要、路徑與引用，提供人工檢視建議，不保證 SOP 正確、完整或跨文件一致。
-- 每項建樹工作最多 600 個節點，只有草稿 revision 沒變時才會原子提交。工作保存在 SQLite，由本機 CLI worker 執行；若禁止啟動程序，可用相同資料庫設定執行 `php bin/worker.php JOB_ID`。持久佇列、重試、取消、復原及工作歷史介面仍待開發。
+- 每項建樹工作最多 600 個節點，只有草稿 revision 沒變時才會原子提交。工作保存在 SQLite，由本機 CLI worker 執行；若禁止啟動程序，可用相同資料庫設定執行 `php bin/worker.php JOB_ID`。已提供最近工作紀錄及自動摘要版本衝突重試；一般取消及中斷手動工作的復原仍待開發。
 - JSON 匯出包含選定版本及來源參照，不是完整備份／還原格式。完整備份應使用 SQLite backup 功能，並妥善保護其中的憑證。
 
 ## 驗證

@@ -44,6 +44,39 @@ This is a custom implementation inspired by hierarchical retrieval concepts, not
 
 The separate Lab calls the same HTTP endpoints used by external clients. Send one command at a time, inspect readable content or raw JSON, follow exact references, and replay recorded operational events. The guided example makes six actual requests from collection discovery through reading Step 2. The map distinguishes visited nodes from the current operation; it displays hierarchy edges, not executable Yes/No rules. Screenshots show the included fictional sample data.
 
+## Docker Compose (recommended)
+
+```sh
+cp .env.example .env
+# Edit .env: set ARBOR_API_TOKEN, provider, model ID and provider credentials.
+docker compose up -d --build
+```
+
+Open http://127.0.0.1:8787 and unlock with your `ARBOR_API_TOKEN`. Compose runs Apache/PHP and a separate automatic-summary worker, with persistent SQLite data in the `arbor-data` volume. The port binds to localhost by default. `.env`, local databases and Git history are excluded from the image. `docker compose down` stops the services while preserving the volume.
+
+For a **Bedrock short-term API key**, set `ARBOR_LLM_PROVIDER=bedrock`, `ARBOR_LLM_MODEL` to your model/inference-profile ID, `AWS_REGION`, and `AWS_BEARER_TOKEN_BEDROCK`. This uses Bearer authentication, not SigV4. For STS credentials instead, leave the bearer token empty and provide `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_SESSION_TOKEN`. See [AWS API key authentication](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-use.html).
+
+For **OpenAI**, set `ARBOR_LLM_PROVIDER=openai`, `ARBOR_LLM_MODEL` to your API model ID, and `OPENAI_API_KEY`. `OPENAI_BASE_URL` defaults to `https://api.openai.com/v1`. Use an API key, not a ChatGPT website login. Only the selected provider is called. See [OpenAI authentication](https://developers.openai.com/api/reference/overview#authentication).
+
+Nonempty model environment values override saved UI values and are marked as environment-managed in the UI. Environment credentials are not copied into SQLite by saving settings. Replace expired Bedrock tokens in `.env`, then run `docker compose up -d --force-recreate` to reload both services. A simple container restart does not reload the env file. There is no automatic token renewal.
+
+## Automatic summaries and layer budgets
+
+The workspace provides **Refresh all summaries**, **Enable/Pause automatic updates**, **Build history**, and a link to layer-budget settings. The progress area shows queued changes, the current node, percentage, completion or a provider failure. Click the small **+** on a tree node to expand its abstract without leaving the tree. The inspector retains exact source content and a longer overview. The Lab also has node selection, browse/read buttons and a question form, so JSON editing is optional.
+
+Automatic summaries are enabled by the example environment configuration. After a content, title, reference or hierarchy edit, the worker waits 15 seconds after the latest edit, then scans the hierarchy and summarizes every node bottom-up. Canvas-position changes do not trigger a build. A root is layer 1; layer 4's budget also applies to deeper nodes. Change these values in **API & models → Summary budgets by layer**:
+
+| Layer | Maximum model output tokens per node | Abstract character cap | Overview character cap |
+| --- | ---: | ---: | ---: |
+| 1 | 256 | 160 | 384 |
+| 2 | 512 | 320 | 768 |
+| 3 | 768 | 480 | 1152 |
+| 4 and deeper | 1024 | 640 | 1536 |
+
+The token limit covers the complete JSON response (abstract and overview together); individual fields use character limits, not an exact tokenizer count. Prompts preserve step conditions, exceptions and target labels. Original content, step IDs and explicit references are never rewritten by summarization. Each node sees the full hierarchy's IDs, parent links, kinds and shortened titles, plus its source and current child summaries; this is not every document's full text in every request. Topic grouping occurs before summaries so new folders and moved nodes get the correct depth budget.
+
+Settings saved through the UI override the environment defaults for summary automation and budgets. Enabling automatic updates schedules an initial whole-tree refresh. Automatic mode only refreshes summaries; it does not silently reorganize or publish the tree. Successful builds commit atomically. An intervening edit causes a retry against the newer draft; model failures stop until another edit or a manual refresh, avoiding repeated paid failures. Whole-structure builds support at most 600 nodes. For non-Docker use, a short-lived background worker starts on edits; run `php bin/auto.php --daemon` for continuous processing. Stopping automatic updates prevents subsequent builds; it does not cancel an in-flight provider request.
+
 ## Run locally
 
 Requires PHP 8.2+ with PDO SQLite, cURL and mbstring. No Composer installation, Node build or frontend framework is needed.
@@ -174,7 +207,7 @@ Configure **API & models**. No credentials or cloud calls are preconfigured.
 
 - **OpenAI-compatible**: base URL ending in `/v1`, API key, model ID; Chat Completions with `max_completion_tokens` and JSON requested in the prompt. Providers with different parameter contracts need an adapter adjustment.
 - **Anthropic**: `https://api.anthropic.com/v1`, API key, model ID; Messages API.
-- **AWS Bedrock**: model/inference-profile ID, region and access/secret/session credentials. AWS environment credentials are supported. Native SigV4 signing calls Converse. IAM roles/automatic credential refreshing and the full AWS SDK credential chain are not implemented.
+- **AWS Bedrock**: model/inference-profile ID, region and access/secret/session credentials. AWS environment credentials are supported. Bearer tokens or native SigV4 signing call Converse. IAM roles/automatic credential refreshing and the full AWS SDK credential chain are not implemented.
 - **Jev (optional)**: TypeSafe System One Noul scores through `jev-latest`. LLM remains required for AI features.
 
 Model keys stay in the local SQLite database outside `public/` and are redacted in settings responses and exports. They are not encrypted at rest beyond operating-system file permissions. Selected source content is sent to the configured provider when an AI operation is requested. The connection test makes a small actual LLM request.
@@ -186,10 +219,10 @@ The adapters and retrieval logic have automated fixture coverage; real provider 
 - Markdown / UTF-8 text only, 30 files per import, 500 KB/file, 2 MB total. Individual node text fields are capped at 100 KB; add headings to split larger sections.
 - Imported sources are hash-deduplicated. Changed files currently create new documents; there is no source synchronization or merge/update wizard yet.
 - Explicit links are sibling `stepN` mentions (document introductions can reference child steps) and Markdown links to exact `viking://` paths. No inferred step targets are invented. Ambiguous or missing targets remain unresolved. Resolved IDs are retained on target rename or move.
-- Abstracts are capped at 800 characters for AI generation, with a 90-word prompt target; overviews are bounded separately. These are character/output budgets, not exact tokenizer budgets. Raw content remains stored separately.
-- AI grouping operates on documents directly under the selected menu and preserves document IDs and internal headings. Import-triggered AI builds only process newly imported documents. A standalone build processes its chosen subtree.
+- Abstracts and overviews follow the layer budgets above; the total model response has a token limit and each field has a character cap. Raw content remains stored separately.
+- AI grouping operates on documents directly under the selected menu and preserves document IDs and internal headings. Scoped builds process the selected nodes; grouping refreshes the whole resulting tree, and automatic updates always refresh the whole tree.
 - Navigation review uses batches of abstracts, paths and references. It flags suggestions for human review; it does not prove SOP correctness, completeness or cross-document consistency.
-- An AI job commits atomically only if the draft revision is unchanged. It can build up to 600 nodes per job. Jobs are stored in SQLite; local CLI workers start automatically when process execution is available. If execution is disabled, run `php bin/worker.php JOB_ID` with the same database environment. Durable queues, retries, cancellation, worker recovery and a job-history UI are future work.
+- An AI job commits atomically only if the draft revision is unchanged. It can build up to 600 nodes per job. Jobs are stored in SQLite; local CLI workers start automatically when process execution is available. If execution is disabled, run `php bin/worker.php JOB_ID` with the same database environment. The UI exposes recent job history; automatic revision-conflict retries are supported. General job cancellation and recovery for interrupted manual jobs remain future work.
 - JSON export contains the selected snapshot and provenance references. It is an interchange view, not a full backup/import format. For a full backup use SQLite's backup facility to include sources, versions and settings; protect the backup because it contains model credentials.
 
 ## Verification

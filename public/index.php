@@ -45,6 +45,8 @@ try {
         if ($method !== 'GET' && !$readOnly && !$bearer && !$browserCsrf) throw new ApiError('csrf_rejected', 'Refresh the page before making changes.', 403);
         session_write_close();
         $repo = new Repository(); $tools = new Tools($repo); $importer = new Importer($repo);
+        if ($uri === '/api/summary-settings' && $method === 'GET') $json(Arbor\Summaries::status());
+        if ($uri === '/api/summary-settings' && $method === 'POST') $json(Arbor\Summaries::save($body));
         if ($uri === '/api/tree' && $method === 'GET') { $s = $repo->snapshot($_GET['version'] ?? 'draft'); $json($s + ['versions' => $repo->versions(), 'published_version' => state('published'), 'issues' => $repo->issues($s['nodes']), 'navigation_review' => $s['version'] === 'draft' ? state('navigation_review') : null]); }
         if ($uri === '/api/nodes' && $method === 'POST') $json($repo->saveNode($body));
         if (preg_match('#^/api/nodes/([a-zA-Z0-9_-]+)$#', $uri, $m) && $method === 'DELETE') $json($repo->deleteNode($m[1], (int)($body['revision'] ?? -1)));

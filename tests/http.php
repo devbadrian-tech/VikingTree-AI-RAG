@@ -1,5 +1,8 @@
 <?php
 declare(strict_types=1);
+// Never inherit live provider configuration or launch automatic workers in tests.
+foreach (['OPENAI_API_KEY','OPENAI_BASE_URL','ARBOR_LLM_PROVIDER','ARBOR_LLM_MODEL','AWS_REGION','AWS_BEARER_TOKEN_BEDROCK','AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY','AWS_SESSION_TOKEN','ARBOR_AUTO_SUMMARIZE','ARBOR_SUMMARY_TOKENS'] as $key) putenv($key . '=');
+putenv('ARBOR_EXTERNAL_WORKER=1');
 $dir = sys_get_temp_dir() . '/arbor-http-' . bin2hex(random_bytes(5)); mkdir($dir, 0700);
 putenv('ARBOR_DB=' . $dir . '/workspace.sqlite'); putenv('ARBOR_API_TOKEN=fixture-local-token');
 $port = random_int(18000, 22000); $providerPort = $port + 1; $root = realpath(__DIR__ . '/..');
@@ -29,6 +32,10 @@ try {
     ok(http('/api/nodes',['title'=>'No token'])['status']===401,'Unauthenticated mutations are denied');
     ok(http('/api/login',['token'=>'fixture-local-token'],['X-CSRF-Token: '.$csrf])['status']===200,'Browser session can authenticate through CSRF-protected login');
     ok(http('/api/nodes',['revision'=>1,'title'=>'No CSRF'])['status']===403,'Authenticated browser mutations still require CSRF');
+    ok(http('/api/summary-settings',['enabled'=>true])['status']===403,'Automatic summary settings require browser CSRF');
+    $summary=http('/api/summary-settings',['enabled'=>false,'debounce'=>15,'tokens'=>[256,512,768,1024]],['X-CSRF-Token: '.$csrf]);
+    ok($summary['status']===200 && $summary['json']['settings']['tokens']===[256,512,768,1024],'Summary settings persist validated layer budgets');
+    ok(http('/api/summary-settings')['json']['settings']['enabled']===false,'Summary status exposes the saved automatic setting');
     $node=http('/api/nodes',['revision'=>1,'title'=>'HTTP fixture','kind'=>'collection'],['X-CSRF-Token: '.$csrf]);
     ok($node['status']===200 && $node['json']['revision']===2,'Authorized browser mutations persist');
     ok(count(http('/api/tree?version=draft')['json']['nodes'])===15,'HTTP tree reads reflect the saved draft');

@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+!.env.example
+data/*
+!data/.gitkeep
+.impeccable
+vendor
+tests/artifacts
+*.log
+.DS_Store

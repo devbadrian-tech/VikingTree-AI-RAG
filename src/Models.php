@@ -13,19 +13,29 @@ final class Models implements ModelGateway
     public static function config(bool $redact = false): array
     {
         $config = array_replace(['provider' => 'openai', 'endpoint' => 'https://api.openai.com/v1', 'model' => '', 'api_key' => '',
-            'region' => 'us-east-1', 'access_key' => '', 'secret_key' => '', 'session_token' => '',
+            'region' => 'us-east-1', 'access_key' => '', 'secret_key' => '', 'session_token' => '', 'bedrock_token' => '',
             'jev_key' => '', 'jev_endpoint' => 'https://api.typesafe.ai/v1/systemone', 'jev_threshold' => 0.65], state('models', []));
-        $config['configured'] = $config['model'] !== '' && ($config['provider'] === 'bedrock' ? (bool)($config['access_key'] ?: getenv('AWS_ACCESS_KEY_ID')) && (bool)($config['secret_key'] ?: getenv('AWS_SECRET_ACCESS_KEY')) : (bool)$config['api_key']);
+        foreach (['provider'=>'ARBOR_LLM_PROVIDER','model'=>'ARBOR_LLM_MODEL','region'=>'AWS_REGION','bedrock_token'=>'AWS_BEARER_TOKEN_BEDROCK'] as $key=>$env) {
+            if (getenv($env) !== false && getenv($env) !== '') $config[$key] = getenv($env);
+        }
+        $config['environment_fields'] = array_values(array_filter(['provider','model','region','bedrock_token'], fn($key) => match($key) { 'provider' => (bool)getenv('ARBOR_LLM_PROVIDER'), 'model' => (bool)getenv('ARBOR_LLM_MODEL'), 'region' => (bool)getenv('AWS_REGION'), default => (bool)getenv('AWS_BEARER_TOKEN_BEDROCK') }));
+        if ($config['provider'] === 'openai' && getenv('OPENAI_API_KEY')) { $config['api_key'] = getenv('OPENAI_API_KEY'); $config['environment_fields'][] = 'api_key'; }
+        if ($config['provider'] === 'openai' && getenv('OPENAI_BASE_URL')) { $config['endpoint'] = getenv('OPENAI_BASE_URL'); $config['environment_fields'][] = 'endpoint'; }
+        $config['configured'] = $config['model'] !== '' && ($config['provider'] === 'bedrock' ? ((bool)$config['bedrock_token'] || ((bool)($config['access_key'] ?: getenv('AWS_ACCESS_KEY_ID')) && (bool)($config['secret_key'] ?: getenv('AWS_SECRET_ACCESS_KEY')))) : (bool)$config['api_key']);
         $config['jev_configured'] = (bool)$config['jev_key'];
-        if ($redact) foreach (['api_key', 'access_key', 'secret_key', 'session_token', 'jev_key'] as $key) { $config[$key . '_set'] = (bool)$config[$key]; unset($config[$key]); }
+        if ($redact) foreach (['api_key', 'access_key', 'secret_key', 'session_token', 'bedrock_token', 'jev_key'] as $key) { $config[$key . '_set'] = (bool)$config[$key]; unset($config[$key]); }
         return $config;
     }
 
     public static function save(array $input): array
     {
-        $config = self::config(); unset($config['configured'], $config['jev_configured']);
-        foreach ($config as $key => $value) if (array_key_exists($key, $input)) {
-            if (in_array($key, ['api_key', 'access_key', 'secret_key', 'session_token', 'jev_key']) && $input[$key] === '') continue;
+        $effective = self::config();
+        $stored = state('models', []);
+        $config = $effective;
+        foreach ($effective['environment_fields'] as $key) $config[$key] = $stored[$key] ?? ($key === 'provider' ? 'openai' : ($key === 'region' ? 'us-east-1' : ($key === 'endpoint' ? 'https://api.openai.com/v1' : '')));
+        unset($config['configured'], $config['jev_configured'], $config['environment_fields']);
+        foreach ($config as $key => $value) if (array_key_exists($key, $input) && !in_array($key, $effective['environment_fields'], true)) {
+            if (in_array($key, ['api_key', 'access_key', 'secret_key', 'session_token', 'bedrock_token', 'jev_key']) && $input[$key] === '') continue;
             $config[$key] = $input[$key];
         }
         if (!in_array($config['provider'], ['openai', 'anthropic', 'bedrock'], true)) throw new ApiError('invalid_provider', 'Choose a supported provider.');
@@ -36,10 +46,10 @@ final class Models implements ModelGateway
             if ($url['scheme'] === 'http' && !in_array($url['host'], ['127.0.0.1', 'localhost', '[::1]'])) throw new ApiError('insecure_endpoint', 'Remote provider endpoints require HTTPS.');
         }
         if (!is_numeric($config['jev_threshold']) || $config['jev_threshold'] < 0 || $config['jev_threshold'] > 1) throw new ApiError('invalid_threshold', 'Jev threshold must be between 0 and 1.');
-        foreach (['model', 'region', 'api_key', 'access_key', 'secret_key', 'session_token', 'jev_key'] as $key) if (!is_string($config[$key]) || strlen($config[$key]) > 4096) throw new ApiError('invalid_settings', 'Invalid model setting.');
+        foreach (['model', 'region', 'api_key', 'access_key', 'secret_key', 'session_token', 'bedrock_token', 'jev_key'] as $key) if (!is_string($config[$key]) || strlen($config[$key]) > 4096) throw new ApiError('invalid_settings', 'Invalid model setting.');
         if (!preg_match('/^[a-z0-9-]+$/', $config['region'])) throw new ApiError('invalid_region', 'Invalid AWS region.');
-        if (!empty($input['clear_secrets'])) foreach (['api_key', 'access_key', 'secret_key', 'session_token', 'jev_key'] as $key) $config[$key] = '';
-        setState('models', $config); return self::config(true);
+        if (!empty($input['clear_secrets'])) foreach (['api_key', 'access_key', 'secret_key', 'session_token', 'bedrock_token', 'jev_key'] as $key) $config[$key] = '';
+        setState('models', $config); Summaries::wake(); return self::config(true);
     }
 
     public function json(string $instruction, array $data, int $tokens = 3000): array
@@ -53,7 +63,7 @@ final class Models implements ModelGateway
             $body = ['system' => [['text' => $system]], 'messages' => [['role' => 'user', 'content' => [['text' => $user]]]], 'inferenceConfig' => ['maxTokens' => $tokens]];
             $region = $c['region']; $host = "bedrock-runtime.$region.amazonaws.com";
             $path = '/model/' . rawurlencode($c['model']) . '/converse'; $payload = encode($body);
-            $headers = $this->signAws($host, $path, $payload, $c);
+            $headers = self::bedrockHeaders($host, $path, $payload, $c);
             $r = $this->request('https://' . $host . $path, $payload, $headers);
             $content = implode('', array_column($r['output']['message']['content'] ?? [], 'text'));
         } elseif ($c['provider'] === 'anthropic') {
@@ -110,6 +120,11 @@ final class Models implements ModelGateway
         try { $result = json_decode($raw, true, 128, JSON_THROW_ON_ERROR); } catch (\Throwable) { throw new ApiError('provider_error', 'The provider returned an invalid response.', 502); }
         if (!is_array($result)) throw new ApiError('provider_error', 'The provider returned an invalid response.', 502);
         return $result;
+    }
+
+    public static function bedrockHeaders(string $host, string $path, string $payload, array $config): array
+    {
+        return !empty($config['bedrock_token']) ? ['Authorization: Bearer ' . $config['bedrock_token']] : (new self())->signAws($host, $path, $payload, $config);
     }
 
     private function signAws(string $host, string $path, string $body, array $c): array
