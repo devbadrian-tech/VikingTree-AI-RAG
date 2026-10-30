@@ -1,4 +1,5 @@
-FROM php:8.3-apache-bookworm
+# Same PHP version as UAT (git.vocus.com.au:4567/docker/php:8.2.35).
+FROM git.vocus.com.au:4567/docker/php:8.2.35
 RUN apt-get update && apt-get install -y --no-install-recommends libsqlite3-dev libonig-dev \
     && docker-php-ext-install pdo_sqlite mbstring \
     && a2enmod rewrite headers \

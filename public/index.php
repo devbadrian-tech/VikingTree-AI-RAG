@@ -47,8 +47,15 @@ try {
         $repo = new Repository(); $tools = new Tools($repo); $importer = new Importer($repo);
         if ($uri === '/api/summary-settings' && $method === 'GET') $json(Arbor\Summaries::status());
         if ($uri === '/api/summary-settings' && $method === 'POST') $json(Arbor\Summaries::save($body));
-        if ($uri === '/api/tree' && $method === 'GET') { $s = $repo->snapshot($_GET['version'] ?? 'draft'); $json($s + ['versions' => $repo->versions(), 'published_version' => state('published'), 'issues' => $repo->issues($s['nodes']), 'navigation_review' => $s['version'] === 'draft' ? state('navigation_review') : null]); }
+        if ($uri === '/api/tree' && $method === 'GET') {
+            $s = $repo->snapshot($_GET['version'] ?? 'draft');
+            // Content, hierarchy or summary differences from the latest published version (map positions do not count).
+            $unpublished = $s['version'] === 'draft' ? Arbor\Summaries::fingerprint($s['nodes']) !== Arbor\Summaries::fingerprint($repo->snapshot(state('published'))['nodes']) : null;
+            $json($s + ['versions' => $repo->versions(), 'published_version' => state('published'), 'unpublished_changes' => $unpublished, 'issues' => $repo->issues($s['nodes']), 'navigation_review' => $s['version'] === 'draft' ? state('navigation_review') : null]);
+        }
         if ($uri === '/api/nodes' && $method === 'POST') $json($repo->saveNode($body));
+        if ($uri === '/api/nodes/reorder' && $method === 'POST') $json($repo->reorder($body));
+        if ($uri === '/api/references/preview' && $method === 'POST') $json($repo->previewReferences($body));
         if (preg_match('#^/api/nodes/([a-zA-Z0-9_-]+)$#', $uri, $m) && $method === 'DELETE') $json($repo->deleteNode($m[1], (int)($body['revision'] ?? -1)));
         if ($uri === '/api/publish' && $method === 'POST') $json($repo->publish((int)($body['revision'] ?? -1), substr((string)($body['label'] ?? ''), 0, 200)));
         if ($uri === '/api/import' && $method === 'POST') $json($importer->import($body));
@@ -56,7 +63,12 @@ try {
         if (preg_match('#^/api/jobs/([a-zA-Z0-9_-]+)$#', $uri, $m) && $method === 'GET') $json($importer->job($m[1]));
         if ($uri === '/api/settings' && $method === 'GET') $json(Models::config(true));
         if ($uri === '/api/settings' && $method === 'POST') $json(Models::save($body));
-        if ($uri === '/api/model-test' && $method === 'POST') { $result = (new Models())->json('Return {"ok":true}.', ['test' => 'connection'], 100); $json(['ok' => ($result['ok'] ?? false) === true]); }
+        if ($uri === '/api/model-test' && $method === 'POST') {
+            $models = new Models(); $config = Models::config();
+            $result = $models->json('Return {"ok":true}.', ['test' => 'connection'], 100);
+            $router = $config['router_model'] !== $config['model'] ? $models->json('Return {"ok":true}.', ['test' => 'connection'], 100, 'route') : $result;
+            $json(['ok' => ($result['ok'] ?? false) === true && ($router['ok'] ?? false) === true, 'model' => $config['model'], 'router_model' => $config['router_model']]);
+        }
         if ($uri === '/api/tool-definitions' && $method === 'GET') $json(['tools' => Tools::definitions()]);
         if ($uri === '/api/openapi.json' && $method === 'GET') {
             $paths = [];

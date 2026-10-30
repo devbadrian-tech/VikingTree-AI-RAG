@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 // Never inherit live provider configuration or launch automatic workers in tests.
-foreach (['OPENAI_API_KEY','OPENAI_BASE_URL','ARBOR_LLM_PROVIDER','ARBOR_LLM_MODEL','AWS_REGION','AWS_BEARER_TOKEN_BEDROCK','AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY','AWS_SESSION_TOKEN','ARBOR_AUTO_SUMMARIZE','ARBOR_SUMMARY_TOKENS'] as $key) putenv($key . '=');
+foreach (['OPENAI_API_KEY','OPENAI_BASE_URL','ARBOR_LLM_PROVIDER','ARBOR_LLM_MODEL','ARBOR_ROUTER_MODEL','AWS_REGION','AWS_BEARER_TOKEN_BEDROCK','AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY','AWS_SESSION_TOKEN','ARBOR_AUTO_SUMMARIZE','ARBOR_SUMMARY_TOKENS'] as $key) putenv($key . '=');
 putenv('ARBOR_EXTERNAL_WORKER=1');
 $dir = sys_get_temp_dir() . '/arbor-http-' . bin2hex(random_bytes(5)); mkdir($dir, 0700);
 putenv('ARBOR_DB=' . $dir . '/workspace.sqlite'); putenv('ARBOR_API_TOKEN=fixture-local-token');
@@ -47,7 +47,7 @@ try {
     $schema=http('/api/openapi.json')['json'];
     ok($schema['openapi']==='3.1.0' && $schema['paths']['/api/tools/read']['post']['operationId']==='read','OpenAPI publishes the actual consumer tool schemas');
     $mcp=http('/mcp',['jsonrpc'=>'2.0','id'=>1,'method'=>'tools/list']);
-    ok($mcp['status']===200 && count($mcp['json']['result']['tools'])===4,'HTTP MCP exposes the same navigation tools');
+    ok($mcp['status']===200 && count($mcp['json']['result']['tools'])===5,'HTTP MCP exposes the same navigation tools');
     ok(http('/mcp',['jsonrpc'=>'2.0','method'=>'notifications/initialized'])['status']===202,'HTTP MCP notifications return 202 without a body');
     ok(http('/mcp')['status']===405,'Unsupported MCP streaming GET returns 405');
     require $root.'/src/bootstrap.php';

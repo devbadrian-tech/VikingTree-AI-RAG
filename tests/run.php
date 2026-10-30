@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 // Never inherit live provider configuration or launch automatic workers in tests.
-foreach (['OPENAI_API_KEY','OPENAI_BASE_URL','ARBOR_LLM_PROVIDER','ARBOR_LLM_MODEL','AWS_REGION','AWS_BEARER_TOKEN_BEDROCK','AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY','AWS_SESSION_TOKEN','ARBOR_AUTO_SUMMARIZE','ARBOR_SUMMARY_TOKENS'] as $key) putenv($key . '=');
+foreach (['OPENAI_API_KEY','OPENAI_BASE_URL','ARBOR_LLM_PROVIDER','ARBOR_LLM_MODEL','ARBOR_ROUTER_MODEL','AWS_REGION','AWS_BEARER_TOKEN_BEDROCK','AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY','AWS_SESSION_TOKEN','ARBOR_AUTO_SUMMARIZE','ARBOR_SUMMARY_TOKENS'] as $key) putenv($key . '=');
 putenv('ARBOR_EXTERNAL_WORKER=1');
 // Each run uses a disposable database; the user's workspace is never touched.
 $testDir = sys_get_temp_dir() . '/arbor-test-' . bin2hex(random_bytes(5)); mkdir($testDir, 0700);
@@ -15,7 +15,7 @@ function fails(callable $fn, string $code, string $message): void { try { $fn();
 function revision(): int { return state('draft')['revision']; }
 final class FakeModels implements ModelGateway {
     public array $summaryCalls = []; public bool $oversize=false; public int $calls = 0; public bool $invalid = false; public bool $noAnswer = false; public bool $rejectFinal = false; public bool $conflict = false;
-    public function json(string $instruction, array $data, int $tokens = 3000): array {
+    public function json(string $instruction, array $data, int $tokens = 3000, string $tier = 'build'): array {
         $this->calls++;
         if ($this->conflict) { $d = state('draft'); $d['revision']++; setState('draft', $d); $this->conflict = false; }
         if (isset($data['candidates'])) return ['selected_ids' => $this->invalid ? ['fabricated_id'] : array_slice(array_column($data['candidates'], 'id'), 0, 2)];
@@ -92,14 +92,14 @@ try {
     Models::save(['api_key' => '']); check(Models::config()['api_key'] === 'fixture-key', 'Empty key updates keep the stored credential');
     fails(fn() => Models::save(['endpoint' => 'http://remote.invalid/v1']), 'insecure_endpoint', 'Remote model endpoints require TLS');
     $fake = new FakeModels(); $ai = new Tools($repo, $fake);
-    $r = $ai->call('search', ['query' => 'Connection outage', 'mode' => 'llm', 'id' => 'demo_dropout']);
+    $r = $ai->call('search', ['query' => 'Connection outage', 'mode' => 'llm', 'id' => 'demo_dropout', 'answer' => true]);
     check($r['data']['answer'] && $r['data']['citations'], 'AI traversal returns a supported answer with valid source IDs');
     check(in_array('route', array_column($r['trace'], 'action')) && in_array('read_evidence', array_column($r['trace'], 'action')), 'AI trace records actual routing and evidence reads');
     $fake->invalid = true;
     fails(fn() => $ai->call('search', ['query' => 'Outage', 'mode' => 'llm']), 'invalid_model_output', 'Invented model IDs are rejected'); $fake->invalid = false;
-    $fake->noAnswer = true; check($ai->call('search', ['query' => 'Outage', 'mode' => 'llm'])['status'] === 'no_answer', 'Insufficient model evidence produces no_answer'); $fake->noAnswer = false;
+    $fake->noAnswer = true; check($ai->call('search', ['query' => 'Outage', 'mode' => 'llm', 'answer' => true])['status'] === 'no_answer', 'Insufficient model evidence produces no_answer'); $fake->noAnswer = false;
     $fake->rejectFinal = true;
-    $r = $ai->call('search', ['query' => 'Outage', 'mode' => 'jev_llm']);
+    $r = $ai->call('search', ['query' => 'Outage', 'mode' => 'jev_llm', 'answer' => true]);
     check($r['status'] === 'no_answer' && $r['data']['answer'] === null, 'Jev can withhold an irrelevant final answer');
     check(in_array('jev_rank', array_column($r['trace'], 'action')) && in_array('verify_relevance', array_column($r['trace'], 'action')), 'Jev routing and final checks appear separately in the trace');
     $build = new Importer($repo, $fake);
@@ -148,14 +148,14 @@ try {
     $count=$fake->calls;Arbor\Summaries::tick($build);check($fake->calls===$count,'Provider failures do not cause an automatic retry loop');
     $mcp = new Mcp($tools, $repo);
     check($mcp->handle(['jsonrpc'=>'2.0','id'=>1,'method'=>'initialize'])['result']['protocolVersion'] === '2025-11-25', 'MCP initializes with an explicit protocol version');
-    check(count($mcp->handle(['jsonrpc'=>'2.0','id'=>2,'method'=>'tools/list'])['result']['tools']) === 4, 'MCP exposes all four navigation tools');
+    check(count($mcp->handle(['jsonrpc'=>'2.0','id'=>2,'method'=>'tools/list'])['result']['tools']) === 5, 'MCP exposes all five navigation tools');
     $mcpRead = $mcp->handle(['jsonrpc'=>'2.0','id'=>3,'method'=>'tools/call','params'=>['name'=>'read','arguments'=>['id'=>'demo_step1']]])['result'];
     check(!$mcpRead['isError'] && isset($mcpRead['structuredContent']['data']['items']), 'MCP returns both structured content and text fallback');
     check($mcp->handle(['jsonrpc'=>'2.0','id'=>4,'method'=>'tools/call','params'=>['name'=>'read','arguments'=>['id'=>'missing']]])['result']['isError'], 'MCP tool failures are explicit isError responses');
     check($mcp->handle(['jsonrpc'=>'2.0','method'=>'notifications/initialized']) === null, 'MCP notifications receive no JSON-RPC response');
     $proc = proc_open([PHP_BINARY, __DIR__.'/../bin/mcp.php'], [['pipe','r'],['pipe','w'],['pipe','w']], $pipes);
     fwrite($pipes[0], encode(['jsonrpc'=>'2.0','id'=>9,'method'=>'tools/list'])."\n"); fclose($pipes[0]); $out=stream_get_contents($pipes[1]);$err=stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);$exit=proc_close($proc);
-    check($exit===0 && $err==='' && count(json_decode($out,true)['result']['tools'])===4, 'Real stdio transport produces clean JSON-RPC without log pollution');
+    check($exit===0 && $err==='' && count(json_decode($out,true)['result']['tools'])===5, 'Real stdio transport produces clean JSON-RPC without log pollution');
     echo "\n$passed checks passed. No live model credentials were used.\n";
 } finally {
     foreach (glob($testDir . '/*') as $file) unlink($file); rmdir($testDir);

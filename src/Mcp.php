@@ -15,12 +15,12 @@ final class Mcp
             $params = $message['params'] ?? [];
             if (!is_array($params)) throw new ApiError('invalid_params', 'params must be an object.');
             $result = match($message['method']) {
-                'initialize' => ['protocolVersion' => '2025-11-25', 'capabilities' => ['tools' => (object)[], 'resources' => (object)[]], 'serverInfo' => ['name' => 'arbor', 'version' => '0.1.0'], 'instructions' => 'Browse menus and read exact instructions. The caller chooses next steps. Pin the returned version on subsequent calls.'],
+                'initialize' => ['protocolVersion' => '2025-11-25', 'capabilities' => ['tools' => (object)[], 'resources' => (object)[]], 'serverInfo' => ['name' => 'arbor', 'version' => '0.1.0'], 'instructions' => 'Browse menus and read exact instructions, or call navigate with an issue description to get only the instructions to follow. The caller chooses next steps. Pin the returned version on subsequent calls.'],
                 'ping' => (object)[],
                 'tools/list' => ['tools' => Tools::definitions()],
                 'tools/call' => $this->call($params),
                 'resources/list' => ['resources' => [['uri' => 'arbor://guide', 'name' => 'Arbor navigation guide', 'mimeType' => 'text/plain', 'description' => 'How to navigate the knowledge tree.']]],
-                'resources/read' => ($params['uri'] ?? '') === 'arbor://guide' ? ['contents' => [['uri' => 'arbor://guide', 'mimeType' => 'text/plain', 'text' => 'Call list_collections, then browse using browse_args. Read using read_args. Follow references[].target.read_args to read exact next steps. The caller interprets conditions. Preserve version between calls. Search supports lexical, llm and jev_llm. Every response contains actual operation traces.']]] : throw new ApiError('resource_not_found', 'Unknown resource.', 404),
+                'resources/read' => ($params['uri'] ?? '') === 'arbor://guide' ? ['contents' => [['uri' => 'arbor://guide', 'mimeType' => 'text/plain', 'text' => 'Call list_collections, then browse using browse_args. Read using read_args. Follow references[].target.read_args to read exact next steps. The caller interprets conditions. Preserve version between calls. Search supports lexical, llm and jev_llm. For an issue description, call navigate: it returns only the matching instruction nodes (runbooks start at step 1) with their viking:// pathway and next[].read_args. Every response contains actual operation traces.']]] : throw new ApiError('resource_not_found', 'Unknown resource.', 404),
                 default => throw new ApiError('method_not_found', 'Method not found.', 404),
             };
             return ['jsonrpc' => '2.0', 'id' => $id, 'result' => $result];

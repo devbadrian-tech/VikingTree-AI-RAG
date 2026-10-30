@@ -91,7 +91,8 @@ php -S 127.0.0.1:8787 -t public public/index.php
 ## 建立及測試知識樹
 
 1. 在 **Workspace** 匯入 Markdown／文字檔，或貼上文件。標題會成為節點，來源原文會保留。
-2. 選取節點查看摘要、原文及引用。編輯後自動儲存；拖動畫布節點會儲存位置，將目錄列拖到另一節點則會改變父節點。亦可使用父節點選擇欄位。
+2. 在左側 **Knowledge tree** 選取節點，開啟節點頁面：指示內容、**Goes to**（此內容的連結）、**Linked from**（哪些節點連到這裡）、子節點及導航摘要。按 **Edit** 進入編輯表單，以 **Save**（Ctrl+S）或 Cancel 明確儲存；有未儲存的修改時離開會先詢問。用樹狀列上的 **+** 或文件頁的 **Add step** 新增節點；新步驟自動命名為「Step N · …」（slug `stepN`）並排在最後。**Move** 改變父節點（亦可把一列拖到另一列上）；子節點清單的 ↑/↓ 調整順序。**Delete** 會列出連到被刪除節點的其他節點。**Map** 分頁顯示畫布，拖動只改變畫面位置。
+   - **連結步驟：** 編輯時按 **Insert link** 選擇任何節點，會在游標位置寫入 `[label](viking://…)`。在同一份 runbook 內也可寫「go to step2」，連到名為「Step 2 …」或 slug 為 `step2` 的同層步驟。編輯框下方會即時顯示每個連結是否解析成功。連結以目標 ID 儲存：目標改名或移動時，連結文字中的 `viking://` 路徑會自動更新；「step N」引用在目標改名後仍指向原步驟。
 3. 設定模型後使用 **AI organize & summarize** 產生摘要、概覽及分類建議，原始指令文字不會被改寫。頁尾可查看最近的導航檢視結果；後續編輯會將其標示為過時。
 4. 檢視後按 **Publish version** 建立固定版本。未解決的明確引用會阻止發布。
 5. 到 **Traversal Lab** 選擇版本，逐次按 **Run next example**：發現知識庫 → Troubleshooting → Network → Dropout → Step 1 → Step 2。最後的分支由示範呼叫方選擇。
@@ -111,6 +112,7 @@ Lab 使用實際 HTTP API。綠色代表操作紀錄中到訪過的節點，金�
 | `browse` | 列出子節點，支援深度 1–4 及分頁 | 無 |
 | `read` | 讀取原文、摘要或概覽，一次最多 10 個 ID | 無 |
 | `search` | 關鍵字、LLM 或 Jev + LLM 檢索 | 視模式而定 |
+| `navigate` | 把問題描述導向只需執行的指示節點 | 查詢模型，每層一次小型呼叫 |
 
 ### 讀取特定步驟
 
@@ -159,7 +161,22 @@ curl http://127.0.0.1:8787/api/tools/read \
 }
 ```
 
-模式包括 `lexical`、`llm`、`jev_llm`。關鍵字模式只返回命中，不生成答案。AI 模式最多探索每層三個分支、八層、每層 60 個候選及十個證據節點；引用及候選 ID 會按範圍與版本驗證。Jev 模式按設定門檻篩選候選，多個可行候選交由 LLM 選擇，最後再檢查相關性。
+模式包括 `lexical`、`llm`、`jev_llm`。關鍵字模式只返回命中，不生成答案。AI 模式的 `items` 只列出路由最後停下的節點，不含途經的目錄；除非傳入 `"answer": true`，否則不會生成答案（答案是一次較大的模型呼叫，在範例樹上約 700 輸入、500 輸出 token）。若只要針對問題取得要執行的指示，請用下方的 `navigate`。AI 模式最多探索每層三個分支、八層、每層 60 個候選及十個證據節點；引用及候選 ID 會按範圍與版本驗證。Jev 模式按設定門檻篩選候選，多個可行候選交由 LLM 選擇，最後再檢查相關性。
+
+### Navigate（給呼叫端應用程式的指示）
+
+```json
+{
+  "query": "Customer 1234 is facing dropouts and slow speed",
+  "id": "demo_troubleshooting",
+  "version": "sample_v1",
+  "max_instructions": 3
+}
+```
+
+查詢模型（Bedrock 預設 Claude Haiku 5.5）逐層走訪樹狀結構。每層只看目前候選的標題與摘要（以 `c1`、`c2` 等短代號提供，捏造的 ID 會被拒絕），挑選與請求中問題相符的分支；一個請求含多個問題時可同時選多個分支，無關分支會略過。選中的節點若有步驟子節點，直接回傳第一步，不需再呼叫模型；只有請求明確提到步驟（例如「已做完 step 1」）時，才由模型選擇其他步驟。沒有子節點的節點本身就是指示。父節點不會回傳，`pathway`（例如 `viking://troubleshooting/network/dropout/step1`）已顯示位置。每個指示包含原文 `content`、`sequence`（步驟位置）、`next[].read_args`（下一步）及 `read_args`。查無相符分支時 `status` 為 `no_match`，`instructions` 為空。`meta.usage` 列出該次查詢的模型呼叫數及供應商回報的 token 數。
+
+**Token 與 thinking：** Claude 5+ 模型會自適應地思考，思考內容以輸出 token 計費。Arbor 保留 thinking，並以 `output_config.effort` 控制：路由用 `low`（`ARBOR_ROUTER_EFFORT`），建樹用模型預設（`ARBOR_BUILD_EFFORT`）。每次呼叫在答案預算之外另留思考空間（路由 2,048、建樹 4,096 token），避免思考擠掉 JSON；只按實際產生的 token 計費。2026 年 10 月以 Bedrock Haiku 5.5 在範例樹上測 10 個請求，low 與預設皆 10/10 正確；low 平均每次約 30 輸出 token，預設約 80。不使用 `thinking: disabled`，因為 Sonnet 5.5 會回 HTTP 400。
 
 `data.coverage` 表示 `entire_scope`、`selected_branches` 或 `budget_limited`。`no_answer` 只代表已探索證據不足，不代表全公司資料皆無答案；`budget_exhausted` 另行表示已達限制。模型或設定錯誤使用非 2xx 回應及 `error.code`，不會假裝成查無資料。
 

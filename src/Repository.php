@@ -77,6 +77,37 @@ final class Repository
             'browse_args' => ['id' => $node['id'], 'version' => $snapshot['version']]];
     }
 
+    // viking:// pathway of every node, computed once per call. Cycles are cut off rather than looping.
+    public function pathMap(array $nodes): array
+    {
+        $byId = array_column($nodes, null, 'id'); $paths = [];
+        $resolve = function (string $id, int $depth = 0) use (&$resolve, &$paths, $byId): string {
+            if (isset($paths[$id])) return $paths[$id];
+            $node = $byId[$id];
+            $parent = $node['parent_id'] && isset($byId[$node['parent_id']]) && $depth < 25 ? $resolve($node['parent_id'], $depth + 1) : 'viking:/';
+            return $paths[$id] = $parent . '/' . $node['slug'];
+        };
+        foreach ($nodes as $n) $resolve($n['id']);
+        return $paths;
+    }
+
+    // Explicit links keep their target ID. When a target is renamed or moved, rewrite the
+    // viking:// path written in the linking node's content so the text never goes stale.
+    private function rewriteLinks(array &$nodes): void
+    {
+        $paths = $this->pathMap($nodes);
+        foreach ($nodes as &$node) {
+            foreach ($node['references'] as &$ref) {
+                if ($ref['origin'] !== 'explicit_link' || !$ref['target_id'] || !isset($paths[$ref['target_id']]) || $ref['mention'] === $paths[$ref['target_id']]) continue;
+                $new = $paths[$ref['target_id']];
+                $node['content'] = str_replace('](' . $ref['mention'] . ')', '](' . $new . ')', $node['content']);
+                $ref['mention'] = $new;
+            }
+            unset($ref);
+        }
+        unset($node);
+    }
+
     public function mutate(int $revision, callable $fn, bool $schedule = true): mixed
     {
         $db = db(); $db->exec('BEGIN IMMEDIATE');
@@ -85,6 +116,8 @@ final class Repository
             if ($draft['revision'] !== $revision) throw new ApiError('revision_conflict', 'This draft changed. Reload before saving.', 409, ['current_revision' => $draft['revision']]);
             $before = Summaries::fingerprint($draft['nodes']);
             $result = $fn($draft);
+            $this->validate($draft['nodes']);
+            $this->rewriteLinks($draft['nodes']);
             $this->validate($draft['nodes']);
             $draft['revision']++; $draft['updated_at'] = now();
             $changed = $schedule && $before !== Summaries::fingerprint($draft['nodes']);
@@ -117,6 +150,19 @@ final class Repository
             foreach (['title', 'slug', 'kind', 'summary', 'overview', 'content', 'parent_id', 'sort_order', 'layout'] as $key) {
                 if (array_key_exists($key, $data)) $node[$key] = $data[$key];
             }
+            // A node created or moved without an explicit order goes to the end of its new menu,
+            // so a new step never jumps ahead of step 1.
+            $moved = $index !== null && array_key_exists('parent_id', $data) && $data['parent_id'] !== $draft['nodes'][$index]['parent_id'];
+            if (($index === null || $moved) && !array_key_exists('sort_order', $data)) {
+                $orders = array_column(array_filter($draft['nodes'], fn($n) => $n['parent_id'] === $node['parent_id'] && $n['id'] !== $node['id']), 'sort_order');
+                $node['sort_order'] = $orders ? max($orders) + 1 : 0;
+            }
+            // Generated slugs are made unique within the menu; an explicitly chosen slug still fails loudly on a clash.
+            if (!array_key_exists('slug', $data) && ($index === null || $moved)) {
+                $used = array_column(array_filter($draft['nodes'], fn($n) => $n['parent_id'] === $node['parent_id'] && $n['id'] !== $node['id']), 'slug');
+                $base = $node['slug']; $i = 2;
+                while (in_array($node['slug'], $used, true)) $node['slug'] = substr($base, 0, 90) . '-' . $i++;
+            }
             if (isset($data['summary'])) $node['summary_origin'] = 'manual';
             $node['updated_at'] = now();
             if ($index === null) { $draft['nodes'][] = $node; $index = count($draft['nodes']) - 1; } else $draft['nodes'][$index] = $node;
@@ -142,6 +188,46 @@ final class Repository
             $draft['nodes'] = array_values(array_filter($draft['nodes'], fn($n) => !in_array($n['id'], $deleted, true)));
             return ['deleted' => $deleted];
         });
+    }
+
+    // Sets the order of every child of one menu in a single revision.
+    public function reorder(array $data): array
+    {
+        return $this->mutate((int)($data['revision'] ?? -1), function (&$draft) use ($data) {
+            $parent = $data['parent_id'] ?? null; $ids = $data['ids'] ?? null;
+            if ($parent !== null && !is_string($parent)) throw new ApiError('invalid_parent', 'The parent does not exist.');
+            if ($parent !== null) $this->resolve(['nodes' => $draft['nodes']], $parent);
+            $current = array_column($this->children($draft['nodes'], $parent), 'id');
+            if (!is_array($ids) || !array_is_list($ids) || count($ids) !== count(array_unique($ids, SORT_REGULAR)) || array_filter($ids, fn($i) => !is_string($i))) throw new ApiError('invalid_order', 'Send every child ID of the menu exactly once.');
+            $a = $ids; $b = $current; sort($a); sort($b);
+            if ($a !== $b) throw new ApiError('invalid_order', 'The menu changed. Reload and try again.', 409);
+            $position = array_flip($ids);
+            foreach ($draft['nodes'] as &$n) if (isset($position[$n['id']])) $n['sort_order'] = $position[$n['id']];
+            unset($n);
+            return ['ids' => $ids];
+        });
+    }
+
+    // Shows how unsaved content would link, without saving. Used by the editor while typing.
+    public function previewReferences(array $data): array
+    {
+        $snapshot = $this->snapshot('draft'); $nodes = $snapshot['nodes'];
+        $content = $data['content'] ?? '';
+        if (!is_string($content) || strlen($content) > 100000) throw new ApiError('content_limit', 'Content must be a string of at most 100 KB.');
+        $existing = null;
+        if (!empty($data['id'])) $existing = $this->resolve($snapshot, (string)$data['id']);
+        $node = $existing ?? $this->makeNode(['id' => '__preview__', 'title' => 'Preview']);
+        if (array_key_exists('parent_id', $data)) $node['parent_id'] = is_string($data['parent_id']) && $data['parent_id'] !== '' ? $data['parent_id'] : null;
+        if (isset($data['kind']) && in_array($data['kind'], ['collection', 'folder', 'document', 'section', 'step'], true)) $node['kind'] = $data['kind'];
+        $node['content'] = $content;
+        if ($node['parent_id'] !== null) $this->resolve($snapshot, $node['parent_id']);
+        $nodes = array_values(array_filter($nodes, fn($n) => $n['id'] !== $node['id'])); $nodes[] = $node;
+        $view = ['version' => 'draft', 'revision' => $snapshot['revision'], 'nodes' => $nodes];
+        return ['references' => array_map(function ($ref) use ($view) {
+            $target = null;
+            foreach ($view['nodes'] as $n) if ($n['id'] === $ref['target_id']) $target = $n;
+            return $ref + ['status' => $target ? 'resolved' : 'unresolved', 'target' => $target ? $this->card($target, $view) : null];
+        }, $this->extractReferences($node, $nodes))];
     }
 
     public function descendants(array $nodes, string $id): array
@@ -175,13 +261,19 @@ final class Repository
     public function extractReferences(array $node, array $nodes): array
     {
         $refs = []; $byId = array_column($nodes, null, 'id');
-        preg_match_all('/\bstep\s*(\d+)\b/i', $node['content'], $matches, PREG_SET_ORDER);
+        $scopeParent = in_array($node['kind'], ['document', 'folder', 'collection'], true) ? $node['id'] : $node['parent_id'];
+        // Earlier resolutions of the same mention, so "go to step2" keeps pointing at that step after it is renamed.
+        $previous = [];
+        foreach ($node['references'] ?? [] as $ref) if ($ref['origin'] === 'explicit_text' && $ref['target_id'] && isset($byId[$ref['target_id']]) && $byId[$ref['target_id']]['parent_id'] === $scopeParent) $previous[strtolower(preg_replace('/\s+/', '', $ref['mention']))] = $ref['target_id'];
+        // Read "step N" only outside [label](viking://…) links; a link URL ending in /step7 is not a second mention.
+        $prose = preg_replace('/\[([^\]]+)\]\(viking:\/\/[^\s)]+\)/', '', $node['content']);
+        preg_match_all('/\bstep\s*(\d+)\b/i', $prose, $matches, PREG_SET_ORDER);
         foreach ($matches as $match) {
             $key = 'step' . $match[1]; $targets = [];
-            $scopeParent = in_array($node['kind'], ['document', 'folder', 'collection'], true) ? $node['id'] : $node['parent_id'];
             foreach ($nodes as $n) if ($n['parent_id'] === $scopeParent && ($n['slug'] === $key || preg_match('/^step\s*' . preg_quote($match[1], '/') . '\b/i', $n['title']))) $targets[] = $n;
             if (count($targets) === 1 && $targets[0]['id'] === $node['id']) continue;
-            $refs[$key] = ['label' => $match[0], 'target_id' => count($targets) === 1 ? $targets[0]['id'] : null, 'origin' => 'explicit_text', 'mention' => $match[0]];
+            $target = count($targets) === 1 ? $targets[0]['id'] : ($previous[$key] ?? null);
+            $refs[$key] = ['label' => $match[0], 'target_id' => $target, 'origin' => 'explicit_text', 'mention' => $match[0]];
         }
         preg_match_all('/\[([^\]]+)\]\((viking:\/\/[^\s)]+)\)/', $node['content'], $links, PREG_SET_ORDER);
         foreach ($links as $link) {

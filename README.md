@@ -54,11 +54,17 @@ docker compose up -d --build
 
 Open http://127.0.0.1:8787 and unlock with your `ARBOR_API_TOKEN`. Compose runs Apache/PHP and a separate automatic-summary worker, with persistent SQLite data in the `arbor-data` volume. The port binds to localhost by default. `.env`, local databases and Git history are excluded from the image. `docker compose down` stops the services while preserving the volume.
 
-For a **Bedrock short-term API key**, set `ARBOR_LLM_PROVIDER=bedrock`, `ARBOR_LLM_MODEL` to your model/inference-profile ID, `AWS_REGION`, and `AWS_BEARER_TOKEN_BEDROCK`. This uses Bearer authentication, not SigV4. For STS credentials instead, leave the bearer token empty and provide `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_SESSION_TOKEN`. See [AWS API key authentication](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-use.html).
+For a **Bedrock short-term API key**, set `ARBOR_LLM_PROVIDER=bedrock`, `ARBOR_LLM_MODEL` to your model/inference-profile ID, `AWS_REGION`, and `AWS_BEARER_TOKEN_BEDROCK`. If no Bedrock model is set, Claude Sonnet 5.5 is used: `au.anthropic.claude-sonnet-5-5` in `ap-southeast-2`/`ap-southeast-4` (requests stay in Australia), `global.anthropic.claude-sonnet-5-5` elsewhere. Two model tiers are used: `ARBOR_LLM_MODEL` builds the tree (summaries, organisation, navigation review) and `ARBOR_ROUTER_MODEL` handles query-time calls (`navigate` and AI `search`). If no router model is set, Bedrock uses Claude Haiku 5.5 (`au.anthropic.claude-haiku-5-5` in Sydney/Melbourne, `global.anthropic.claude-haiku-5-5` elsewhere); other providers reuse the build model. This uses Bearer authentication, not SigV4. For STS credentials instead, leave the bearer token empty and provide `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_SESSION_TOKEN`. See [AWS API key authentication](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-use.html).
 
 For **OpenAI**, set `ARBOR_LLM_PROVIDER=openai`, `ARBOR_LLM_MODEL` to your API model ID, and `OPENAI_API_KEY`. `OPENAI_BASE_URL` defaults to `https://api.openai.com/v1`. Use an API key, not a ChatGPT website login. Only the selected provider is called. See [OpenAI authentication](https://developers.openai.com/api/reference/overview#authentication).
 
 Nonempty model environment values override saved UI values and are marked as environment-managed in the UI. Environment credentials are not copied into SQLite by saving settings. Replace expired Bedrock tokens in `.env`, then run `docker compose up -d --force-recreate` to reload both services. A simple container restart does not reload the env file. There is no automatic token renewal.
+
+## UAT deployment (Drone, 10.50.10.205:9001)
+
+`.drone.yml` follows the members-portal UATx pattern. Every build runs `tests/run.php` and `tests/http.php` on `git.vocus.com.au:4567/docker/php:8.2.35`. Promoting a build to target `uat` updates the full git repo at `/home/superu/adrian/vikingtree-uat` on 205 to the promoted commit (`git reset --keep`: live edits are kept, and the deploy stops if they conflict), copies `.env.uat` to `.env`, and recreates two containers from the existing image, with no image build: `vikingtree-uat` (`php -S` on port 9001) and `vikingtree-uat-worker` (`bin/auto.php --daemon`). SQLite data stays in the repo's git-ignored `data/` folder. Rollback to target `uat` stops the containers and keeps the repo and data.
+
+Set `ARBOR_API_TOKEN` and `AWS_BEARER_TOKEN_BEDROCK` in `.env.uat`; the deploy stops if the access token is empty. Live updates on 205: edited PHP files and `.env` take effect on the next web request; run `docker restart vikingtree-uat-worker` so the summary worker picks them up too. The Drone repo needs the `ssh_uat_password` secret.
 
 ## Automatic summaries and layer budgets
 
@@ -98,8 +104,9 @@ On macOS/Linux, `PHP_CLI_SERVER_WORKERS=4` before the command allows other reque
 ## Try the complete flow
 
 1. In **Workspace**, import Markdown/text files or paste a document. Headings become nodes, and the original source file is preserved separately.
-2. Select a node to inspect its abstract, content, children and exact references. Edit a node; changes autosave. Drag a canvas node to save its visual position. Drag an outline row onto another node to change its parent. The parent selector is the keyboard alternative.
-3. With a model configured, **AI organize & summarize** creates bounded abstracts and overviews, optionally groups immediate documents into folders, and reviews navigation coherence. Original instruction text is not rewritten. The last review is available from the workspace footer and is marked stale after later edits.
+2. Select a node in the **Knowledge tree** to open its page: instructions, **Goes to** (links in this content), **Linked from** (backlinks), its children and the navigation summary. **Edit** opens a form with explicit **Save** (Ctrl+S) and Cancel; leaving with unsaved edits asks first. Use **+** on a tree row or **Add step** on a document to add a node; new steps are numbered “Step N · …” with slug `stepN` and placed last. **Move** changes the parent (or drag a row onto another row); ↑/↓ in the children list reorders siblings. **Delete** lists the nodes that link to what you remove. The **Map** tab shows the canvas; dragging there only changes the picture.
+   - **Linking steps:** in Edit, **Insert link** picks any node and writes `[label](viking://…)` at the cursor. Inside a runbook, “go to step2” links to the sibling named “Step 2 …” or with slug `step2`. A live panel under the editor shows each link and whether it resolves before you save. Links store the target ID: renaming or moving the target rewrites the `viking://` path in the linking text, and “step N” mentions keep their target after it is renamed.
+3. With a model configured, **AI organize & summarize** creates bounded abstracts and overviews, optionally groups immediate documents into folders, and reviews navigation coherence. Each summary call receives its layer budget, the budgets of every layer, its siblings' abstracts and the pathway of every node, and is told the abstract is what the cheap router reads. The review sees the whole outline and can attach a `suggested_pathway` to an issue. Original instruction text is not rewritten. Broken links and AI suggestions appear as a chip in the workspace toolbar; the review is marked stale after later edits.
 4. Review and **Publish version**. Broken explicit references block publication. Publication creates an immutable snapshot; the draft remains editable.
 5. In **Traversal Lab**, select a version and send real tool calls. **Run next example** performs six requests, one click at a time: root → troubleshooting → network → dropout → step1 → step2. That final branch choice belongs to the example caller.
 6. Read the response, inspect its JSON, or replay recorded trace events. Clicking a returned reference performs the exact next read. Clicking a map node prepares a read command without sending it.
@@ -108,7 +115,7 @@ The map shows hierarchy edges, not executable Yes/No edges. Green nodes have bee
 
 ## Consumer API
 
-All four tools use `POST /api/tools/{name}` with JSON arguments. Definitions are available at `GET /api/tool-definitions`; the generated OpenAPI 3.1 description is at `GET /api/openapi.json`.
+All five tools use `POST /api/tools/{name}` with JSON arguments. Definitions are available at `GET /api/tool-definitions`; the generated OpenAPI 3.1 description is at `GET /api/openapi.json`.
 
 | Tool | Purpose | Model calls |
 | --- | --- | --- |
@@ -116,6 +123,7 @@ All four tools use `POST /api/tools/{name}` with JSON arguments. Definitions are
 | `browse` | List children; depth 1–4; paginated | None |
 | `read` | Exact content, abstract or overview; up to 10 IDs | None |
 | `search` | Keyword search, LLM routing, or Jev + LLM routing | Depends on mode |
+| `navigate` | Route an issue description to only the instructions to follow | Router model, one small call per level |
 
 ### Read a specified step
 
@@ -167,12 +175,58 @@ Follow `data.next_cursor` with the same node, version and depth until it is null
   "id": "demo_troubleshooting",
   "version": "sample_v1",
   "mode": "llm",
-  "answer": true,
+  "answer": false,
   "limit": 6
 }
 ```
 
-Modes: `lexical`, `llm`, `jev_llm`. Lexical search explicitly returns matches without a generated answer. AI modes explore up to three branches per level, eight levels, 60 candidates per level and ten evidence nodes. A selected node can supply content even if it also has children. Candidates and citations are validated against the selected version and scope. Jev mode filters with the configured threshold, asks the LLM to choose among multiple viable candidates, and applies a final relevance check.
+Modes: `lexical`, `llm`, `jev_llm`. Lexical search explicitly returns matches without a generated answer. In AI modes `items` lists only the nodes where routing ended, not the menus it passed through, and no answer is written unless you send `"answer": true`; the answer is one larger model call (on the sample tree about 700 input and 500 output tokens). To get only the instructions to execute for an issue, use `navigate` below. AI modes explore up to three branches per level, eight levels, 60 candidates per level and ten evidence nodes. A selected node can supply content even if it also has children. Candidates and citations are validated against the selected version and scope. Jev mode filters with the configured threshold, asks the LLM to choose among multiple viable candidates, and applies a final relevance check.
+
+### Navigate (instructions for a calling application)
+
+```json
+{
+  "query": "Customer 1234 is facing dropouts and slow speed",
+  "id": "demo_troubleshooting",
+  "version": "sample_v1",
+  "max_instructions": 3
+}
+```
+
+The router model walks the tree one level at a time. At each level it sees only the titles and abstracts of the current candidates (as short handles `c1`, `c2`, …, so invented IDs are rejected) and picks the branches that match a problem in the request. A request with several problems can pick several branches; unrelated branches are skipped. When a picked node has step children, its first step is returned without another model call. Only when the request names a step ("already did step 1", "what is step 3") does the router choose a different step. A picked node without children is returned as the instruction. Parent nodes are not returned; the pathway shows where each instruction sits:
+
+```json
+{
+  "status": "ok",
+  "engine": "navigate",
+  "instructions": [
+    {
+      "id": "demo_step1",
+      "pathway": "viking://troubleshooting/network/dropout/step1",
+      "title": "Step 1 · Check service status",
+      "kind": "step",
+      "content": "Check the service status page …",
+      "sequence": { "position": 1, "total": 6 },
+      "next": [{ "label": "step2", "pathway": "viking://troubleshooting/network/dropout/step2", "read_args": { "id": "demo_step2", "version": "sample_v1" } }],
+      "read_args": { "id": "demo_step1", "version": "sample_v1" }
+    },
+    {
+      "id": "demo_slow",
+      "pathway": "viking://troubleshooting/network/slow",
+      "title": "Slow connection",
+      "kind": "document",
+      "content": "# Slow connection …",
+      "next": [],
+      "read_args": { "id": "demo_slow", "version": "sample_v1" }
+    }
+  ],
+  "coverage": "selected_branches"
+}
+```
+
+The caller evaluates the conditions in `content` and follows `next[].read_args` with `read`; no further model call is needed. `no_match` means no branch matched, and `instructions` is empty. `meta.usage` reports the router calls and provider-reported tokens for the request. Limits: eight levels, 60 candidates per call, five picks per level, `max_instructions` 1–5 (default 3). Routing quality depends on abstracts that say which problems belong in each branch, which is what the build step is asked to write.
+
+**Tokens and thinking.** Claude 5+ models think adaptively, and thinking is billed as output. Arbor keeps thinking on and sends `output_config.effort`: `low` for routing (`ARBOR_ROUTER_EFFORT`) and the model default for building (`ARBOR_BUILD_EFFORT`). Every call also gets thinking headroom on top of its answer budget (2,048 tokens for routing, 4,096 for building), so reasoning cannot crowd out the JSON; only generated tokens are billed. Measured on Bedrock with Haiku 5.5 (Oct 2026), a 10-request routing benchmark on the sample tree scored 10/10 at both low and default effort; low averaged about 30 output tokens per call and default about 80. `"Customer 1234 is facing dropouts and slow speed"` costs 3 calls, about 1,100 input and 51 output tokens. `thinking: disabled` is not used because Sonnet 5.5 rejects it.
 
 `data.coverage` reports `entire_scope`, `selected_branches` or `budget_limited`. `no_answer` means no supported answer in the explored evidence, not proof that the entire company corpus lacks an answer. `budget_exhausted` is distinct from `no_answer`. Provider/configuration errors use non-2xx responses with `error.code` and never masquerade as a knowledge miss. Trace messages describe operations, not hidden model reasoning.
 
