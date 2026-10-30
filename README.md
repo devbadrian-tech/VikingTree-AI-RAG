@@ -113,6 +113,49 @@ On macOS/Linux, `PHP_CLI_SERVER_WORKERS=4` before the command allows other reque
 
 The map shows hierarchy edges, not executable Yes/No edges. Green nodes have been included in recorded operations; gold nodes belong to the current operation. Browse counts as visiting a node's metadata. **Fit** gives an overview; zoom and scrolling expose details. On small canvases, the map initially focuses the selected branch. The whole-tree control restores the complete overview.
 
+## Transfer a knowledge tree to UAT
+
+The workspace **Export** action downloads an `arbor.v1` JSON package containing the selected version's complete tree, summaries, stable reference relationships, provenance and referenced source text. Credentials, model settings, jobs, sessions and other versions are excluded. Old snapshot-only `arbor.v1` exports are also accepted; their missing source bodies cannot be recovered.
+
+1. Deploy this code to UAT first so `/api/import-tree` and the JSON file picker are available.
+2. Unlock the workspace, open **Import**, and select a knowledge JSON file in **Knowledge tree JSON**. Import JSON separately from Markdown/text. The JSON picker accepts up to 3 MB; the HTTP request limit is 4 MB.
+3. Import appends to the **draft**. Existing knowledge and published versions stay intact. IDs and internal references are remapped; root names receive a suffix on collisions. Importing the same package twice creates a second tree. Source text is deduplicated by content hash.
+4. Review the imported tree and source citations, then **Publish**. The chatbot should use that concrete published version for its entire troubleshooting session.
+
+Import uses the package's curated summaries and does not schedule an AI build. Existing queued automation is independent; pause automatic summaries before importing if a prior build is pending and you want to retain these summaries. Later content edits follow the server's normal automation settings.
+
+For API clients, download `GET /api/export?version=draft` (or a concrete published version). Import using `POST /api/import-tree` with `{"revision": CURRENT_DRAFT_REVISION, "package": EXPORTED_JSON_OBJECT}`. Use Bearer authentication, or an authenticated browser session with `X-CSRF-Token`. A stale draft revision returns 409; malformed graphs and references are rejected atomically. Packages cannot reference nodes outside themselves. A successful response includes imported root IDs, node/source counts and an old-to-new `id_map`. The import does not publish.
+
+### Ready-to-import NBN troubleshooting package
+
+Use the locally generated [NBN JSON package](exports/nbn-troubleshooting.arbor.json), built from the five supplied NBN checklists: Fibre revision 19, FTTB/FTTN revision 14, FTTC revision 8, HFC revision 15 and Wireless revision 14. See [the source coverage table](exports/nbn-troubleshooting.arbor.coverage.md) for the exact diagnostic sections and PDF pages.
+
+The generated package and its coverage table stay outside Git because they contain internal NBN material. Rebuild them from the supplied PDFs or transfer the generated JSON directly to UAT.
+
+The package has **540 nodes**, **44 issue pathways**, **111 diagnostic references** and **five source text extractions**. Its two domains follow the diagnostic-agent design: `NBN troubleshooting → technology → issue → step`, and `NBN diagnostic test information → technology → source procedure`. Node abstracts state the issue trigger. Source-native steps retain their conditions, reset/retest timings and escalation restrictions. Links load detailed procedures only when needed. Numbering that restarts between source phases is explicitly identified rather than silently guessed.
+
+For low-cost routing, resolve the technology from service inventory and scope `navigate` to its technology node, for example:
+
+```json
+{"pathway":"viking://nbn-troubleshooting/fttc","version":"YOUR_PUBLISHED_VERSION","query":"One FTTC customer has no DSL sync and no internet"}
+```
+
+Pass the returned `read_args` to `read` for subsequent steps and references. These reads do not call a model. The descriptions of NBN portal actions are source instructions; map them to verified WMM tools in the calling application. This repository does not implement those tools, service permissions or their execution.
+
+Each pathway ends with resolution verification and an evidence checklist. The calling chatbot retains actual observations, test/WRI/HRI IDs, timestamps, parameters, result attachments, missing evidence and the reportable-fault basis. A simple fix requires a successful retest before closing. An unresolved case yields an evidence-backed **ticket draft for explicit RSP review**. Ticket submission, persistent diagnostic sessions and evidence storage belong to the portal agent.
+
+Source figures are not embedded. The package includes labelled PDF-derived text with filename, revision, document number, section, page range and PDF SHA-256 provenance. It contains internal NBN commercial material; distribute it through the intended internal UAT workflow. The Word design document and `.env` files are excluded. Known source ambiguities are called out in the coverage table, including contradictory FTTP Wi-Fi placement wording and a missing HFC speed-threshold reference. Criteria referred to an external WBA/SHS guide are not invented.
+
+Rebuild from the same five PDF revisions without model calls:
+
+```sh
+python3 scripts/build_nbn_package.py --pdf-dir /path/to/pdfs
+```
+
+The tests use a synthetic fixture when this private package is absent; `ARBOR_TEST_PACKAGE=/nonexistent/path` also selects that fixture.
+
+Requires Poppler `pdftotext`; use `--pdftotext /path/to/pdftotext` if it is outside PATH. `php tests/transfer.php` checks package round trips, remapped links, provenance, revision conflicts, invalid graphs, source deduplication, publication and selected technology-specific requirements.
+
 ## Consumer API
 
 All five tools use `POST /api/tools/{name}` with JSON arguments. Definitions are available at `GET /api/tool-definitions`; the generated OpenAPI 3.1 description is at `GET /api/openapi.json`.

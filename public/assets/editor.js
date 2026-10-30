@@ -183,7 +183,7 @@ function renderPage() {
       ${n.overview ? `<details class="overview-detail"><summary>Overview</summary><div class="prose">${markdown(n.overview)}</div></details>` : ''}
     </section>
     ${devPanel(n)}
-    <div class="source-line">${icon('document')}<div>${n.source ? `${esc(n.source.name)}${n.source.line_start ? ` · lines ${n.source.line_start}–${n.source.line_end}` : ''}${n.source.id ? ` · <button class="text-button" data-source="${esc(n.source.id)}">View original file</button>` : ''}` : 'Written in this workspace.'}</div></div>`;
+    <div class="source-line">${icon('document')}<div>${n.source ? `${esc(n.source.name)}${n.source.page_start ? ` · PDF pages ${esc(n.source.page_start)}–${esc(n.source.page_end)} · section ${esc(n.source.section || '')} · revision ${esc(n.source.revision || '')}` : ''}${n.source.line_start ? ` · lines ${esc(n.source.line_start)}–${esc(n.source.line_end)}` : ''}${n.source.id ? ` · <button class="text-button" data-source="${esc(n.source.id)}">View source text</button>` : ''}` : 'Written in this workspace.'}</div></div>`;
 }
 
 // What a calling application sends and gets for this node.
@@ -399,7 +399,8 @@ function issuesDialog() {
 
 function importDialog() {
   let p = nodeById(S.selected); while (p && !['folder', 'collection'].includes(p.kind)) p = nodeById(p.parent_id);
-  modal('Import documents', 'Each heading becomes a node. “## Step 1 …” headings become steps. The original file is kept.', `
+  modal('Import documents', 'Import a portable knowledge JSON export, or Markdown/text documents.', `
+    <div class="dropzone"><h3>Knowledge tree JSON</h3><p class="field-note">Appends the exported tree with its summaries, links and sources. Existing knowledge and published versions stay intact. Uses the included summaries without scheduling an AI build. Up to 3 MB.</p><input type="file" id="import-tree-file" accept=".json" aria-label="Select knowledge tree JSON"></div>
     <div class="dropzone">${icon('upload')}<h3>Markdown or text files</h3><p class="field-note">Up to 30 files · 500 KB each · 2 MB total</p><input type="file" id="import-files" multiple accept=".md,.markdown,.txt" aria-label="Select documents"></div>
     <label for="import-parent">Put them inside</label><select id="import-parent">${parentOptions(p?.id || null)}</select>
     <details style="margin-top:16px"><summary>Or paste a document</summary><label for="import-name">File name</label><input id="import-name" value="runbook.md"><label for="import-text">Content</label><textarea id="import-text" placeholder="# Runbook title&#10;&#10;## Step 1 · Check the cable&#10;Your instructions here. If it works, go to step2."></textarea></details>
@@ -409,6 +410,16 @@ function importDialog() {
 async function submitImport(button) {
   button.disabled = true;
   try {
+    const packageFile = $('#import-tree-file').files[0];
+    if (packageFile) {
+      if ($('#import-files').files.length || $('#import-text').value.trim()) throw new Error('Import JSON separately from text documents.');
+      if (packageFile.size > 3000000) throw new Error('Knowledge JSON must be at most 3 MB.');
+      let pack; try { pack = JSON.parse(await packageFile.text()); } catch { throw new Error('The selected file is not valid JSON.'); }
+      const r = await mutate('/api/import-tree', {package: pack});
+      closeModal(); S.selected = r.result.added[0]; S.edit = false; renderAll();
+      toast(`Imported ${r.result.node_count} nodes and ${r.result.source_count} sources into the draft. Review, then Publish to make them available to the chatbot.`);
+      return;
+    }
     const files = await Promise.all([...$('#import-files').files].map(async f => ({name: f.name, content: await f.text()})));
     if ($('#import-text').value.trim()) files.push({name: $('#import-name').value, content: $('#import-text').value});
     const parent = $('#import-parent').value || null, useAI = $('#import-ai').checked;

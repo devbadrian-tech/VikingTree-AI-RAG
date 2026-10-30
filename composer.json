@@ -3,5 +3,5 @@
   "description": "PHP-first hierarchical knowledge workspace and traversal lab",
   "type": "project",
   "require": {"php": ">=8.2", "ext-pdo": "*", "ext-pdo_sqlite": "*", "ext-curl": "*", "ext-mbstring": "*"},
-  "scripts": {"test": ["@php tests/run.php", "@php tests/http.php"], "serve": "php -S 127.0.0.1:8787 -t public public/index.php"}
+  "scripts": {"test": ["@php tests/run.php", "@php tests/transfer.php", "@php tests/http.php"], "serve": "php -S 127.0.0.1:8787 -t public public/index.php"}
 }

@@ -67,6 +67,22 @@ try {
     Arbor\Models::save(['endpoint'=>'http://127.0.0.1:'.$providerPort.'/unavailable']);
     $error=http('/api/model-test',[],['X-CSRF-Token: '.$csrf]);
     ok($error['status']===502 && $error['json']['error']['code']==='provider_error','Provider failures remain distinguishable from a knowledge no-answer result');
+    // Tree packages use the same auth, CSRF and revision checks as other mutations.
+    $packagePath=getenv('ARBOR_TEST_PACKAGE')?:$root.'/exports/nbn-troubleshooting.arbor.json';
+    $pack=is_file($packagePath)?json_decode(file_get_contents($packagePath),true):require __DIR__.'/transfer-fixture.php';
+    $revision=http('/api/tree?version=draft')['json']['revision'];
+    ok(http('/api/import-tree',['revision'=>$revision,'package'=>$pack])['status']===403,'Tree package import requires browser CSRF');
+    $import=http('/api/import-tree',['revision'=>$revision,'package'=>$pack],['X-CSRF-Token: '.$csrf]);
+    ok($import['status']===200 && $import['json']['result']['node_count']===count($pack['snapshot']['nodes']),'Knowledge JSON package imports through HTTP');
+    ok(http('/api/import-tree',['revision'=>$revision,'package'=>$pack],$auth)['status']===409,'Package import rejects stale revisions');
+    $idMap=$import['json']['result']['id_map'];
+    $sourceRead=http('/api/tools/read',['id'=>$idMap['nbn_ref_fttc_outage'],'version'=>'draft'])['json'];
+    ok($sourceRead['data']['items'][0]['source']['revision']==='8','HTTP reads return imported PDF provenance');
+    $source=http('/api/sources/'.$sourceRead['data']['items'][0]['source']['id']);
+    ok($source['status']===200 && str_contains($source['json']['original'],'DPU Port'),'Imported source text is readable on the destination server');
+    $export=http('/api/export?version=draft');
+    ok($export['status']===200 && count($export['json']['sources'])===5 && !str_contains($export['raw'],'fixture-key'),'HTTP export includes source bodies and excludes credentials');
+    ok(http('/api/tree?version=sample_v1')['json']['nodes'][0]['id']==='demo_troubleshooting','Tree package import preserves the published version');
     echo "\n$count HTTP/provider checks passed. Providers were local fixtures; no live API calls.\n";
 } finally {
     foreach($processes as $proc){proc_terminate($proc);proc_close($proc);}

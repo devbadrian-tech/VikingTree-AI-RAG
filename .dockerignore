@@ -9,3 +9,8 @@ vendor
 tests/artifacts
 *.log
 .DS_Store
+
+# Local PDF extracts and portable knowledge packages are imported separately.
+tmp/
+exports/
+__pycache__/

@@ -58,6 +58,7 @@ try {
         if ($uri === '/api/references/preview' && $method === 'POST') $json($repo->previewReferences($body));
         if (preg_match('#^/api/nodes/([a-zA-Z0-9_-]+)$#', $uri, $m) && $method === 'DELETE') $json($repo->deleteNode($m[1], (int)($body['revision'] ?? -1)));
         if ($uri === '/api/publish' && $method === 'POST') $json($repo->publish((int)($body['revision'] ?? -1), substr((string)($body['label'] ?? ''), 0, 200)));
+        if ($uri === '/api/import-tree' && $method === 'POST') $json((new Arbor\Transfer($repo))->import($body));
         if ($uri === '/api/import' && $method === 'POST') $json($importer->import($body));
         if ($uri === '/api/build' && $method === 'POST') $json($importer->startBuild($body), 202);
         if (preg_match('#^/api/jobs/([a-zA-Z0-9_-]+)$#', $uri, $m) && $method === 'GET') $json($importer->job($m[1]));
@@ -77,7 +78,7 @@ try {
         }
         if (preg_match('#^/api/tools/([a-z_]+)$#', $uri, $m) && $method === 'POST') $json($tools->call($m[1], $body));
         if (preg_match('#^/api/sources/([a-zA-Z0-9_-]+)$#', $uri, $m) && $method === 'GET') { $q = Arbor\db()->prepare('SELECT id,name,original,hash,created_at FROM sources WHERE id=?'); $q->execute([$m[1]]); $source = $q->fetch(); if (!$source) throw new ApiError('source_not_found', 'Source not found.', 404); $json($source); }
-        if ($uri === '/api/export' && $method === 'GET') { header('Content-Disposition: attachment; filename="arbor-knowledge.json"'); $json(['format' => 'arbor.v1', 'snapshot' => $repo->snapshot($_GET['version'] ?? 'draft')]); }
+        if ($uri === '/api/export' && $method === 'GET') { header('Content-Disposition: attachment; filename="arbor-knowledge.json"'); $json((new Arbor\Transfer($repo))->export($_GET['version'] ?? 'draft')); }
         if ($uri === '/mcp') {
             if ($method !== 'POST') { header('Allow: POST'); throw new ApiError('method_not_allowed', 'This stateless MCP endpoint accepts JSON-RPC POST requests.', 405); }
             $result = (new Mcp($tools, $repo))->handle($body);

@@ -139,7 +139,7 @@ final class Tools
             try { $target = $this->repo->resolve($s, $ref['target_id']); } catch (ApiError) { continue; }
             $next[] = ['label' => $ref['label'], 'pathway' => $this->repo->path($target, $s['nodes']), 'read_args' => ['id' => $target['id'], 'version' => $s['version']]];
         }
-        $item = ['id' => $node['id'], 'pathway' => $this->repo->path($node, $s['nodes']), 'title' => $node['title'], 'kind' => $node['kind'], 'content' => $node['content']];
+        $item = ['id' => $node['id'], 'pathway' => $this->repo->path($node, $s['nodes']), 'title' => $node['title'], 'kind' => $node['kind'], 'content' => $node['content'], 'source' => $node['source']];
         if ($node['kind'] === 'step' && $node['parent_id']) {
             $siblings = array_values(array_filter($this->repo->children($s['nodes'], $node['parent_id']), fn($c) => $c['kind'] === 'step'));
             $item['sequence'] = ['position' => array_search($node['id'], array_column($siblings, 'id'), true) + 1, 'total' => count($siblings)];

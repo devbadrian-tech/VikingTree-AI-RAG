@@ -8,3 +8,9 @@
 /.env.*
 !/.env.example
 *.log
+
+/tmp/
+__pycache__/
+
+# Locally generated private NBN source material; transfer directly to internal UAT.
+/exports/nbn-troubleshooting.arbor.*
